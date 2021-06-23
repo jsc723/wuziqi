@@ -17,7 +17,8 @@ const int H = 72;
 inline int inrangeA(int i){return (i>0&&i<A);}
 inline int inrangeR(int i){return (i>=0&&i<R);}
 inline int inRange(int i,int j){ return (i>=0&&i<R&&j>=0&&j<R);}
-class Row;
+class Info;
+class RowInfo;
 class BoardInfo;
 enum Direction{rightt,down,rightup,rightdown};
 class Board;
@@ -30,13 +31,77 @@ public:
 	int x;
 	int y;
 };
-//------------------------------------Row------------------------------------------------//
-class Row
+//------------------------------------RowInfo------------------------------------------------//
+class Info
 {
 public:
-    Row(int t[R][R],Point start,Direction d);
+    Info()
+    {
+        twoUSR=0;
+        sleepThreeUSR=0;
+        aliveThreeUSR=0;
+        sleepFourUSR=0;
+        aliveFourUSR=0;
+        fiveUSR=0;
+        twoCOM=0;
+        sleepThreeCOM=0;
+        aliveThreeCOM=0;
+        sleepFourCOM=0;
+        aliveFourCOM=0;
+        fiveCOM=0;
+    };
+    void showInfo()
+    {
+        qDebug("twoUSR=%d\nsleepThreeUSR=%d\naliveThreeUSR=%d\nsleepFourUSR=%d\naliveFourUSR=%d\nfiveUSR=%d\ntwoCOM=%d\n\
+sleepThreeCOM=%d\n\
+aliveThreeCOM=%d\n\
+sleepFourCOM=%d\n\
+aliveFourCOM=%d\n\
+fiveCOM=%d\n",\
+        twoUSR,\
+        sleepThreeUSR,\
+        aliveThreeUSR,\
+        sleepFourUSR,\
+        aliveFourUSR,\
+        fiveUSR,\
+        twoCOM,\
+        sleepThreeCOM,\
+        aliveThreeCOM,\
+        sleepFourCOM,\
+        aliveFourCOM,\
+        fiveCOM);
+    }
+    int getTwo(int player) {return player == USR ? twoUSR : twoCOM;}
+    int getSleepThree(int player) {return player == USR ? sleepThreeUSR : sleepThreeCOM;}
+    int getAliveThree(int player) {return player == USR ? aliveThreeUSR : aliveThreeCOM;}
+    int getSleepFour(int player) {return player == USR ? sleepFourUSR : sleepFourCOM;}
+    int getAliveFour(int player) {return player == USR ? aliveFourUSR : aliveFourCOM;}
+    int getFive(int player) {return player == USR ? fiveUSR : fiveCOM;}
+
+protected:
+    int twoUSR;
+    int sleepThreeUSR;
+    int aliveThreeUSR;
+    int sleepFourUSR;
+    int aliveFourUSR;
+    int fiveUSR;
+
+    int twoCOM;
+    int sleepThreeCOM;
+    int aliveThreeCOM;
+    int sleepFourCOM;
+    int aliveFourCOM;
+    int fiveCOM;
+};
+
+
+class RowInfo : public Info
+{
+public:
+    friend class BoardInfo;
+    RowInfo(int t[R][R],Point start,Direction d);
     int *getData();
-    int *tempArray(int row[],int player);
+    int *tempArray(int RowInfo[],int player);
     int numOfTwo(int temp[],int player);
     int numOfSleepThree(int temp[],int player);
     int numOfAliveThree(int temp[],int player);
@@ -51,59 +116,16 @@ public:
     int *data;
     int (*parent)[R];
     int length;
-    int twoUSR;
-    int sleepThreeUSR;
-    int aliveThreeUSR;
-    int sleepFourUSR;
-    int aliveFourUSR;
-    int fiveUSR;
-    int twoCOM;
-    int sleepThreeCOM;
-    int aliveThreeCOM;
-    int sleepFourCOM;
-    int aliveFourCOM;
-    int fiveCOM;
 };
-class BoardInfo
+class BoardInfo : public Info
 {
 public:
-	BoardInfo()
-	{
-		twoUSR=0;
-		sleepThreeUSR=0;
-		aliveThreeUSR=0;
-		sleepFourUSR=0;
-		aliveFourUSR=0;
-		fiveUSR=0;
-		twoCOM=0;
-		sleepThreeCOM=0;
-		aliveThreeCOM=0;
-		sleepFourCOM=0;
-		aliveFourCOM=0;
-		fiveCOM=0;
-	};
-	void showInfo()
-	{
-        qDebug("twoUSR=%d\nsleepThreeUSR=%d\naliveThreeUSR=%d\nsleepFourUSR=%d\naliveFourUSR=%d\nfiveUSR=%d\ntwoCOM=%d\n\
-sleepThreeCOM=%d\n\
-aliveThreeCOM=%d\n\
-sleepFourCOM=%d\n\
-aliveFourCOM=%d\n\
-fiveCOM=%d\n",\
-		twoUSR,\
-		sleepThreeUSR,\
-		aliveThreeUSR,\
-		sleepFourUSR,\
-		aliveFourUSR,\
-		fiveUSR,\
-		twoCOM,\
-		sleepThreeCOM,\
-		aliveThreeCOM,\
-		sleepFourCOM,\
-		aliveFourCOM,\
-		fiveCOM);
-    }
-    void add(Row* r) {
+    friend class RowInfo;
+    BoardInfo() :
+        Info()
+    {}
+
+    void add(RowInfo* r) {
         twoUSR += r->twoUSR;
         sleepThreeUSR += r->sleepThreeUSR;
         aliveThreeUSR += r->aliveThreeUSR;
@@ -117,7 +139,7 @@ fiveCOM=%d\n",\
         aliveFourCOM += r->aliveFourCOM;
         fiveCOM += r->fiveCOM;
     }
-    void sub(Row* r) {
+    void sub(RowInfo* r) {
         twoUSR -= r->twoUSR;
         sleepThreeUSR -= r->sleepThreeUSR;
         aliveThreeUSR -= r->aliveThreeUSR;
@@ -132,18 +154,7 @@ fiveCOM=%d\n",\
         fiveCOM -= r->fiveCOM;
     }
 
-	int twoUSR;
-	int sleepThreeUSR;
-	int aliveThreeUSR;
-	int sleepFourUSR;
-	int aliveFourUSR;
-	int fiveUSR;
-	int twoCOM;
-	int sleepThreeCOM;
-	int aliveThreeCOM;
-	int sleepFourCOM;
-	int aliveFourCOM;
-	int fiveCOM;
+
 };
 
 
@@ -174,15 +185,21 @@ public:
 	double thinkAbout(Point forcast[],int level,int nextPlayer,double parentExtreme);
     double thinkAbout2(Point forcast[], int level, int nextPlayer, double a, double b);
     double score(int nextPlayer);
-	double scoreAsCOM();
-	double scoreAsUSR();
-	double lim(int three,int four);
-	bool VCFCOM(vector<Point> &vcfForcast,int level);
-	bool VCFUSR(vector<Point> &vcfForcast,int level);
+    //double scoreAsCOM();
+    //double scoreAsUSR();
+    double otherPlayer(int player) const
+        {return player == COM ? USR : COM;}
+    double lim(int three, int four, bool consertive);
+    bool VCF(int player, vector<Point> &vcfForcast,int level);
+    //bool VCFCOM(vector<Point> &vcfForcast,int level);
+    //bool VCFUSR(vector<Point> &vcfForcast,int level);
+    bool VCT(int player, Point &result, int level);
     bool VCTCOM(vector<Point> &vcfForcast,int level);
     bool VCTUSR(vector<Point> &vcfForcast,int level);
-    bool preCheck(int *x,int *y);
-    void afterCheck(int *x, int *y);
+    bool preCheck(int *x, int *y, int player);
+    void afterCheck(int *x, int *y, int player);
+    bool tryVCF(int *x, int *y, int player);
+    bool tryVCT(int *x, int *y, int player);
     void reset();
     int getValue(int x,int y){return table[x][y];}
     void dPrintVCF(vector<Point> &vcf, int player) const;
@@ -190,15 +207,16 @@ public:
     int toColOnTable(char col) const;
     int toRowOnBoard(int row) const;
     int toRowOnTable(int row) const;
+    int nextPlayer(int starter) const;
 
 	BoardInfo getInfo();
-    BoardInfo getInfoAround(int x,int y);
-	Row *hash[H];
+    //BoardInfo getInfoAround(int x,int y);
+    RowInfo *hash[H];
     Point steps[R*R];
 	vector<Point> vcf,vcfu;
 	int count;
     bool justHuiqi;
-	bool hasVCF;
+    //bool hasVCF;
 	int first;
     bool dif;
     BoardInfo info;
@@ -210,7 +228,7 @@ private:
 	int table[R][R];
 
 };
-
+vector<Point> &clean(vector<Point> &vcfForcast);
 
 
 

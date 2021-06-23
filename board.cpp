@@ -11,29 +11,27 @@ Board::Board()
     int i;
     count = 0;
     justHuiqi = false;
-    hasVCF = false;
     dif = true;
     info = BoardInfo();
     for(int i= 0;i<225;i++)
         table[i/R][i%R] = EMPTY;
     for(i=0;i<R;i++)
-        hash[i] = new Row(table,Point(0,i),down);
+        hash[i] = new RowInfo(table,Point(0,i),down);
     for(i=0;i<R;i++)
-        hash[i+15] = new Row(table,Point(i,0),rightt);
+        hash[i+15] = new RowInfo(table,Point(i,0),rightt);
     for(i=0;i<11;i++)
-        hash[i+30] = new Row(table,Point(4+i,0),rightup);
+        hash[i+30] = new RowInfo(table,Point(4+i,0),rightup);
     for(i=0;i<10;i++)
-        hash[i+41] = new Row(table,Point(14,1+i),rightup);
+        hash[i+41] = new RowInfo(table,Point(14,1+i),rightup);
     for(i=0;i<11;i++)
-        hash[i+51] = new Row(table,Point(i,0),rightdown);
+        hash[i+51] = new RowInfo(table,Point(i,0),rightdown);
     for(i=0;i<10;i++)
-        hash[i+62] = new Row(table,Point(0,1+i),rightdown);
+        hash[i+62] = new RowInfo(table,Point(0,1+i),rightdown);
 }
 void Board::reset()
 {
     count = 0;
     justHuiqi = false;
-    hasVCF = false;
     for(int i= 0;i<225;i++)
         table[i/R][i%R] = EMPTY;
     flashHash();
@@ -65,6 +63,16 @@ int Board::toRowOnBoard(int row) const
 int Board::toRowOnTable(int row) const
 {
     return 15-row;
+}
+int Board::nextPlayer(int starter) const
+{
+    int player = starter;
+    if(count > 0) {
+        Point lastPt = steps[count - 1];
+        if(table[lastPt.x][lastPt.y] == starter)
+            player = otherPlayer(starter);
+    }
+    return player;
 }
 
 void Board::print() const
@@ -119,10 +127,10 @@ bool Board::put(Point p, int player)
 bool Board::put(char *s,int player)
 {
     char c;
-    int row,col;
-    sscanf(s,"%[A-O]%d",&c,&row);
+    int RowInfo,col;
+    sscanf(s,"%[A-O]%d",&c,&RowInfo);
     col = c-65;
-    return put(15-row,col,player);
+    return put(15-RowInfo,col,player);
 }
 bool Board::del(int x,int y)
 {
@@ -152,7 +160,7 @@ void Board::userInput()
     int x=-2,y=-2;
     while(true)
     {
-        printf("Enter row and column.\n");
+        printf("Enter RowInfo and column.\n");
         scanf("%d%d",&x,&y);
         if(inrangeR(x)&&inrangeR(y)&&getValue(x,y)==EMPTY) break;
         else if(x==-1&&y==-1&&count>=2)
@@ -174,53 +182,32 @@ void Board::compInput()
 {
     int x,y;
     double score;
-    Point pt;
+    int player = nextPlayer(COM);
     if(count==0){x=7;y=7;}
-    else if(count==1) {round2(&x,&y);}
-    else if(count==2) {round3(&x,&y);}
-    else if(preCheck(&x,&y)){ }
-    //----------------------------------------------------------------------------------//
+    else if(count==1) {round2(&x, &y);}
+    else if(count==2) {round3(&x, &y);}
+    else if(preCheck(&x, &y, player)){ }
+    else if(dif && tryVCF(&x, &y, player)) { }
+    else if(dif && tryVCT(&x, &y, player)) { }
     else
     {
-        for(int i=1;i<=10 && dif ;i+=3)
-        {
-            vcf.clear();
-            hasVCF = VCFCOM(vcf,i);
-            if(hasVCF) break;
-        }
-        vcf.clear();
-        if(!hasVCF && dif && !VCFUSR(vcf,4))
-        {
-            vcf.clear();
-            hasVCF = VCTCOM(vcf,6);
-        }
-        if(dif && hasVCF && vcf.size()>0)
-        {
-            pt = vcf[0];
-            x = pt.x;
-            y = pt.y;
-            //qDebug("(%d,%d,VCTCOM)",x,y);
-            //dPrintVCF(vcf,COM);
-        }
-        else
-        {
-            Point forcast[6];
-            score = thinkAbout(forcast, MAX_LEVEL, COM, 100000);
-            //score = thinkAbout2(forcast,MAX_LEVEL,COM,-100000,100000);
-            x = forcast[MAX_LEVEL].x;
-            y = forcast[MAX_LEVEL].y;
-        }
+        Point forcast[6];
+        int extreme = player == COM ? 100000 : -100000;
+        score = thinkAbout(forcast, MAX_LEVEL, player, extreme);
+        x = forcast[MAX_LEVEL].x;
+        y = forcast[MAX_LEVEL].y;
         if(score<-5000)
         {
-            afterCheck(&x,&y);
+            afterCheck(&x,&y, player);
         }
     }
-    //----------------------------------------------------------------------------------//
+
 
     steps[count] = Point(x,y);
-    put(x,y,COM);
+    put(x,y,player);
     //qDebug("%d COM : (x = %d,y = %d)\n",count,x,y);
-    qDebug("%d COM : (%c,%d)\n",count,toColOnBoard(x),toRowOnBoard(y));
+    qDebug("%d %s : (%c,%d)\n",count,player == COM ? "COM":"USR",
+           toColOnBoard(x),toRowOnBoard(y));
     //getInfo().showInfo();
 }
 void Board::round2(int *x,int *y)
@@ -262,17 +249,15 @@ void Board::round3(int *x,int *y)
         }
     }
 }
-bool Board::preCheck(int *x, int *y)
+bool Board::preCheck(int *x, int *y, int player)
 {
-    BoardInfo info = getInfo();
-    if(info.aliveFourCOM+info.sleepFourCOM>0) //go five
+    if(info.getAliveFour(player)+info.getSleepFour(player)>0) //go five
     {
         for(int i=0;i<R;i++)for(int j=0;j<R;j++)
         {
-            if(table[i][j]==EMPTY)
+            if(put(i,j,player))
             {
-                put(i,j,COM);
-                if( getInfo().fiveCOM )
+                if(info.getFive(player))
                 {
                     del(i,j);
                     *x = i;
@@ -283,16 +268,16 @@ bool Board::preCheck(int *x, int *y)
             }
         }
     }
-    //block USR four
-    if(info.sleepFourUSR+info.aliveFourUSR>0 )
+    int other = otherPlayer(player);
+    //block other's four
+    if(info.getSleepFour(other)+info.getAliveFour(other)>0 )
     {
-        int n = info.sleepFourUSR+2*info.aliveFourUSR;
+        int n = info.getSleepFour(other)+2*info.getAliveFour(other);
         for(int i=0;i<R;i++)for(int j=0;j<R;j++)
         {
-            if(table[i][j]==EMPTY)
+            if(put(i,j,player))
             {
-                put(i,j,COM);
-                if( getInfo().sleepFourUSR+2*getInfo().aliveFourUSR < n)
+                if( info.getSleepFour(other)+2*info.getAliveFour(other) < n)
                 {
                     del(i,j);
                     *x = i;
@@ -303,14 +288,13 @@ bool Board::preCheck(int *x, int *y)
             }
         }
     }
-    if(info.aliveThreeCOM>0&&(info.sleepFourUSR+info.aliveFourUSR==0))
+    if(info.getAliveThree(player)>0&&(info.getSleepFour(other)+info.getAliveFour(other)==0))
     {
         for(int i=0;i<R;i++)for(int j=0;j<R;j++)
         {
-            if(table[i][j]==EMPTY)
+            if(put(i,j,player))
             {
-                put(i,j,COM);
-                if( getInfo().aliveFourCOM )
+                if( info.getAliveFour(player) )
                 {
                     del(i,j);
                     *x = i;
@@ -324,33 +308,60 @@ bool Board::preCheck(int *x, int *y)
     return false;
 }
 
-void Board::afterCheck(int *x, int *y)
+void Board::afterCheck(int *x, int *y, int player)
 {
     BoardInfo info;
+    int other = otherPlayer(player);
     for(int i=0;i<R;i++)for(int j=0;j<R;j++)
     {
-        if(put(i,j,USR))
+        if(put(i,j,other))
         {
-            info = getInfo();
-            del(i,j);
-            if(info.aliveFourUSR>=1)
+            if(info.getAliveFour(other)>=1)
             {
-                *x=i;*y=j;return;
+                *x=i;*y=j;del(i,j);return;
             }
+            del(i,j);
         }
     }
     for(int i=0;i<R;i++)for(int j=0;j<R;j++)
     {
-        if(put(i,j,USR))
+        if(put(i,j,other))
         {
-            info = getInfo();
-            del(i,j);
-            if(info.sleepFourUSR+info.aliveThreeUSR>=2)
+            if(info.getSleepFour(other)+info.getAliveThree(other)>=2)
             {
-                *x=i;*y=j;return;
+                *x=i;*y=j;del(i,j);return;
             }
+            del(i,j);
         }
     }
+}
+
+bool Board::tryVCF(int *x, int *y, int player) {
+    for(int i=1;i<=10;i+=3)
+    {
+        if(VCF(player,clean(vcf),i))
+        {
+            dPrintVCF(vcf, player);
+            *x = vcf[0].x;
+            *y = vcf[0].y;
+            return true;
+        }
+    }
+    return false;
+}
+bool Board::tryVCT(int *x, int *y, int player) {
+    //return false;
+    Point vct;
+    if(VCT(player,vct,6))
+    {
+        qDebug("%s VCT %c%d",
+               player == COM ? "COM" : "USR",
+               toColOnBoard(vct.x),toRowOnBoard(vct.y));
+        *x = vct.x;
+        *y = vct.y;
+        return true;
+    }
+    return false;
 }
 
 //------------------------------------------------------------------computer input END
@@ -359,10 +370,7 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
     Point pt;
     if(level==0)
     {
-        if(nextPlayer == USR)
-            return scoreAsCOM();
-        else
-            return -1*scoreAsUSR();
+        return score(nextPlayer);
     }
     else if(winner()!=0)
         return (winner()==COM)?20000:-20000;
@@ -380,8 +388,8 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
                 put(i,j,COM);
                 temp = thinkAbout(forcast,level-1,USR,max);
                 if(noNeighbor(i,j))
-                    temp-=5;
-                temp -= closeToBoundary(i,j)*20;
+                    temp-=3;
+                temp -= closeToBoundary(i,j)*10;
                 if(level== MAX_LEVEL)
                 {
 
@@ -431,8 +439,8 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
                 put(i,j,USR);
                 temp = thinkAbout(forcast,level-1,COM,min);
                 if(noNeighbor(i,j))
-                    temp+=1;
-                temp += closeToBoundary(i,j)*4;
+                    temp+=3;
+                temp += closeToBoundary(i,j)*10;
                 if(temp<min)
                 {
                     min = temp;
@@ -448,110 +456,39 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
     }
     return 0;
 }
-double Board::thinkAbout2(Point forcast[],int level,int nextPlayer,double a,double b)
-{
-    Point pt;
-    if(level==0)
-    {
-        return score(nextPlayer);
-    }
-    else if(winner()!=0)
-        return (winner()==COM)?20000:-20000;
-    else if(isFull())
-        return 0;
 
-    else if(nextPlayer==COM) //next is computer
-    {
-        double max=-100000;
-        double temp;
-        for(int i=0;i<R;i++) for(int j=0;j<R;j++)
-        {
-            if(!(farAway(i,j))&&table[i][j] == EMPTY)
-            {
-                put(i,j,COM);
-                temp = thinkAbout2(forcast,level-1,USR,a,b);
-                if(noNeighbor(i,j))
-                    temp-=5;
-                temp -= closeToBoundary(i,j)*20;
-                /*
-                if(level==MAX_LEVEL)
-                {
-                    //-----------------------------------------
-
-                    vcfu.clear();
-                    int d = (temp>max-100)?0:1;
-                    if(VCTUSR(vcfu,2+d))
-                    {
-                        temp -= (5000 - vcfu.size()*15);
-                        qDebug("(%c%d,VCT/VCF USR) ",toColOnBoard(i),toRowOnBoard(j));
-                        dPrintVCF(vcfu,USR);
-                    }
-
-                    qDebug("(%c%d,[%.1f]) ",toColOnBoard(i),toRowOnBoard(j),temp);
-                    qDebug("---------------");
-                    nowWorkingOn = Point(i,j);
-                    //-------------------------------------------
-                }
-                */
-                if(temp>max)
-                {
-                    max = temp;
-                    if(max>a)a = max;
-                    forcast[level].x = i;
-                    forcast[level].y = j;
-                    if(level==MAX_LEVEL)
-                    {
-                        qDebug("[Now Choice %c%d %.1f]",toColOnBoard(i),toRowOnBoard(j),max);
-                        getInfo().showInfo();
-                    }
-                }
-                del(i,j);
-                if(b<=a)
-                    goto end_loop;
-            }
-        }
-        end_loop:
-        if(level==MAX_LEVEL)
-            printf("\n");
-        return max;
-    }
-    else if(nextPlayer==USR) //next is user
-    {
-        double min=100000;
-        double temp;
-        for(int i=0;i<R;i++) for(int j=0;j<R;j++)
-        {
-            if(!(farAway(i,j))&&table[i][j] == EMPTY)
-            {
-                put(i,j,USR);
-                temp = thinkAbout2(forcast,level-1,COM,a,b);
-                if(noNeighbor(i,j))
-                    temp+=1;
-                temp += closeToBoundary(i,j)*4;
-                if(temp<min)
-                {
-                    min = temp;
-                    if(min<b)b=min;
-                    forcast[level] = Point(i,j);
-                }
-                del(i,j);
-                if(b<=a)
-                    goto end_loop2;
-            }
-        }
-        end_loop2:
-        return min;
-    }
-    return 0;
-}
 double Board::score(int nextPlayer)
 {
-    if(nextPlayer == USR)
-        return scoreAsCOM();
-    else
-        return -1*scoreAsUSR();
-}
+    double score=0;
+    double k;
+    int player = otherPlayer(nextPlayer);
+    bool consertive = (first == nextPlayer && count<20);
 
+    if(consertive)
+        k = 1.5 - count * 0.02;
+    else
+        k = 0.9;
+    if(info.getFive(player)>0)
+        return 20000;
+    if(info.getAliveFour(nextPlayer) + info.getSleepFour(nextPlayer)>0)
+        return -20000;
+    if(info.getAliveFour(player)>0)
+        return 8000;
+
+    if(info.getAliveThree(nextPlayer) > 0) {
+        if(info.getSleepFour(player) == 0)
+            return -20000;
+        else
+            score -= 12;
+    }
+
+    score += lim(info.getAliveThree(player), info.getSleepFour(player), consertive);
+    score +=   (5*info.getTwo(player) + 7*info.getSleepThree(player))
+                -  k * (5*info.getTwo(nextPlayer)  +  7*info.getSleepThree(nextPlayer));
+
+    return player == COM ? score : -score;
+}
+/*
 double Board::scoreAsCOM()
 {
     double score=0;
@@ -610,16 +547,84 @@ double Board::scoreAsUSR()
 
     return score;
 }
+*/
+vector<Point> &clean(vector<Point> &vcfForcast) {
+    vcfForcast.clear();
+    return vcfForcast;
+}
 
-double Board::lim(int three,int four)
+double Board::lim(int three,int four, bool consertive)
 {
-    if(three==1&&four==0) return (first==USR&&count<20)?3:5;
-    if(three==0&&four==1) return (first==USR&&count<20)?3:4;
+    if(three==1&&four==0) return consertive?3:5;
+    if(three==0&&four==1) return consertive?3:4;
     if(three>=2&&four==0) return 4000;
     if(three>=1&&four>=1) return 16000;
     if(three==0&&four>=2) return 16500;
     return 0;
 }
+bool Board::VCF(int player, vector<Point> &vcfForcast,int level) {
+    int other = otherPlayer(player);
+    int i,j;
+    if(isFull())
+        return false;
+    BoardInfo info = getInfo();
+    if(info.getFive(player) + info.getAliveFour(player) + info.getSleepFour(player) > 0)
+        return true;
+    if(info.getAliveFour(other) + info.getSleepFour(other) > 0)
+        return false;
+    if(info.getAliveThree(player) > 0)
+        return true;
+    if(level <= 0)
+        return false;
+    for(i=0;i<H;i++)
+    {
+        if(hash[i]->getSleepThree(player) > 0)
+        {
+            Point pt,pt2;
+            for(j=0;j < hash[i]->length;j++)
+            {
+                pt = hash[i]->pts[j];
+                if(put(pt.x,pt.y,player)) //若此处为空则下子
+                {
+                    if(hash[i]->getSleepFour(player)>=1) //冲四
+                    {
+                        bool blocked = false;
+                        for(int k = 0;k<hash[i]->length && !blocked;k++) //对方堵四
+                        {
+                            pt2 = hash[i]->pts[k];
+                            if(put(pt2.x,pt2.y,other))//若此处为空则下子
+                            {
+                                if(hash[i]->getSleepFour(player)==0) //若刚刚一步堵掉了冲四
+                                {
+                                    blocked = true;
+                                    vcfForcast.push_back(pt);//入栈记录
+                                    vcfForcast.push_back(pt2);
+                                    if(VCF(player,vcfForcast,level-1))//递归，计算下一步冲四
+                                    {
+                                        del(pt2.x,pt2.y);//出栈
+                                        del(pt.x,pt.y);
+                                        return true;
+                                    }
+                                    vcfForcast.pop_back();//出栈
+                                    vcfForcast.pop_back();
+                                }
+                                del(pt2.x,pt2.y);//出栈
+                            }
+                        }
+                        if(blocked==false) //如果对方堵不掉
+                        {
+                            del(pt.x,pt.y);
+                            return true;
+                        }
+                    }
+                    del(pt.x,pt.y);//出栈
+                }
+            }
+        }
+    }
+    return false;
+}
+/*
 bool Board::VCFCOM(vector<Point> &vcfForcast,int level)
 {
     int i,j;
@@ -750,7 +755,74 @@ bool Board::VCFUSR(vector<Point> &vcfForcast,int level)
     }
     return findVCF;
 }
+*/
 
+
+bool Board::VCT(int player, Point &result, int level) {
+    int i,j;
+    int other = otherPlayer(player);
+    vector<Point> tempVcf;
+
+    if(VCF(player, tempVcf, level))
+        return true;
+    if(level<=0)
+        return false;
+    bool carefulOtherVCF = VCF(other, clean(tempVcf),4);
+
+    for(i=0;i<H;i++)
+    {
+        if(hash[i]->getTwo(player) + hash[i]->getSleepThree(player) >0)
+        {
+            Point pt,pt2;
+            for(j=0;j < hash[i]->length;j++)
+            {
+                pt = hash[i]->pts[j];
+                if(put(pt.x,pt.y,player))
+                {
+                    int numOfAttack = info.getAliveThree(player)+ info.getSleepFour(player);
+                    if(numOfAttack >=1) //冲三/冲四
+                    {
+                        if(carefulOtherVCF && VCF(other,clean(tempVcf),4))//if cannot block other's VCF
+                        {
+                            del(pt);
+                            continue; //continue search
+                        }
+                        bool blocked = false;
+
+                        for(int k = 0;k < hash[i]->length && !blocked;k++) //对方堵
+                        {
+                            pt2 = hash[i]->pts[k];
+                            if(put(pt2.x,pt2.y,other))//若此处为空则下子
+                            {
+                                //若刚刚一步堵掉了冲三/冲四
+                                if(hash[i]->getAliveThree(player) + hash[i]->getSleepFour(player) ==0)
+                                {
+                                    //递归，计算下一步冲三/冲四
+                                    if(!VCT(player, result,level-1))
+                                    {
+                                        blocked = true;
+                                    }
+                                }
+                                del(pt2.x,pt2.y);//出栈
+                            }
+                        }
+
+                        if(!blocked) //如果对方堵不掉
+                        {
+                            del(pt.x,pt.y);
+                            result = pt;
+                            return true;
+                        }
+                    }
+                    del(pt.x,pt.y);//出栈
+                }
+            }
+        }
+    }
+    return false;
+
+}
+/*
 bool Board::VCTCOM(vector<Point> &vcfForcast, int level)
 {
     int i,j;
@@ -758,11 +830,11 @@ bool Board::VCTCOM(vector<Point> &vcfForcast, int level)
     bool blocked = false;
     vector<Point> tempVcf;
 
-    if(VCFCOM(vcfForcast,level))
+    if(VCF(COM, vcfForcast,level))
         return true;
     if(level<=0)
         return false;
-    bool carefulVCFUSR = VCFUSR(tempVcf,3);
+    bool carefulVCFUSR = VCF(USR, tempVcf,3);
     for(i=0;i<H && !findVCT;i++)
     {
         if(hash[i]->twoCOM + hash[i]->sleepThreeCOM >0)
@@ -776,7 +848,8 @@ bool Board::VCTCOM(vector<Point> &vcfForcast, int level)
                     int numOfAttack = info.aliveThreeCOM + info.sleepFourCOM;
                     if(numOfAttack >=1) //冲三/冲四
                     {
-                        if(carefulVCFUSR && VCFUSR(tempVcf,3))
+                        tempVcf.clear();
+                        if(carefulVCFUSR && VCF(USR,tempVcf,3))//TODO
                         {
                             del(pt);
                             continue;
@@ -824,11 +897,11 @@ bool Board::VCTUSR(vector<Point> &vcfForcast, int level)
     bool blocked = false;
     vector<Point> tempVcf;
 
-    if(VCFUSR(vcfForcast,level))
+    if(VCF(USR, vcfForcast,level))
         return true;
     if(level<=0)
         return false;
-    bool carefulVCFCOM = VCFCOM(tempVcf,3);
+    bool carefulVCFCOM = VCF(COM, tempVcf,3);
     for(i=0;i<H && !findVCT;i++)
     {
         if(hash[i]->twoUSR + hash[i]->sleepThreeUSR >0)
@@ -841,7 +914,7 @@ bool Board::VCTUSR(vector<Point> &vcfForcast, int level)
                 {
                     if(hash[i]->aliveThreeUSR + hash[i]->sleepFourUSR > 0) //冲三/冲四
                     {
-                        if(carefulVCFCOM && VCFCOM(tempVcf,3))
+                        if(carefulVCFCOM && VCF(COM,tempVcf,3))
                         {
                             del(pt);
                             continue;
@@ -879,7 +952,7 @@ bool Board::VCTUSR(vector<Point> &vcfForcast, int level)
     }
     return findVCT;
 }
-
+*/
 
 /*----------------------------------------farAway------------------------------------------------------*/
 bool Board::farAway(int m,int n)
@@ -925,9 +998,10 @@ void Board::flashHash(int x,int y)
     else if(diff>=-10&&diff<0)
         hash[61+(-1)*diff]->flash(&info);
 }
+/*
 BoardInfo Board::getInfoAround(int x,int y)
 {
-    Row *tempHash[H];
+    RowInfo *tempHash[H];
     tempHash[0] = hash[y];
     tempHash[1] = hash[x+15];
     int sum = x+y,diff = x-y;
@@ -955,44 +1029,25 @@ BoardInfo Board::getInfoAround(int x,int y)
     }
     return info;
 }
-
+*/
 BoardInfo Board::getInfo()
 {
-    /*
-    BoardInfo info;
-    int i;
-    for(i=0;i<H;i++)
-    {
-        info.aliveFourCOM += hash[i]->aliveFourCOM;
-        info.aliveFourUSR += hash[i]->aliveFourUSR;
-        info.aliveThreeCOM += hash[i]->aliveThreeCOM;
-        info.aliveThreeUSR += hash[i]->aliveThreeUSR;
-        info.fiveCOM += hash[i]->fiveCOM;
-        info.fiveUSR += hash[i]->fiveUSR;
-        info.sleepFourCOM += hash[i]->sleepFourCOM;
-        info.sleepFourUSR += hash[i]->sleepFourUSR;
-        info.sleepThreeCOM += hash[i]->sleepThreeCOM;
-        info.sleepThreeUSR += hash[i]->sleepThreeUSR;
-        info.twoCOM +=  hash[i]->twoCOM;
-        info.twoUSR +=  hash[i]->twoUSR;
-    }
-    return info;
-    */
     return info;
 }
 int Board::winner()
 {
     for(int i=0;i<H;i++)
     {
-        if(hash[i]->fiveCOM>0)
+        if(hash[i]->getFive(COM)>0)
             return COM;
-        if(hash[i]->fiveUSR>0)
+        if(hash[i]->getFive(USR)>0)
             return USR;
     }
     return 0;
 }
-//------------------------------------Row-------------------------------------------------//
-Row::Row(int t[R][R],Point start,Direction d)
+//------------------------------------RowInfo-------------------------------------------------//
+RowInfo::RowInfo(int t[R][R],Point start,Direction d) :
+    Info()
 {
     int i,j,k;
     for(i=0;i<R;i++)
@@ -1039,23 +1094,11 @@ Row::Row(int t[R][R],Point start,Direction d)
         }
         break;
     }
-    twoUSR=0;
-    sleepThreeUSR=0;
-    aliveThreeUSR=0;
-    sleepFourUSR=0;
-    aliveFourUSR=0;
-    fiveUSR=0;
-    twoCOM=0;
-    sleepThreeCOM=0;
-    aliveThreeCOM=0;
-    sleepFourCOM=0;
-    aliveFourCOM=0;
-    fiveCOM=0;
     parent = t;
     data = 0;
     length = k;
 }
-void Row::flash(BoardInfo* info)
+void RowInfo::flash(BoardInfo* info)
 {
     info->sub(this);
     if(data!=0)
@@ -1079,7 +1122,7 @@ void Row::flash(BoardInfo* info)
     delete[] tempCOM;
     info->add(this);
 }
-int *Row::getData()
+int *RowInfo::getData()
 {
     int *data = new int[R];
     int i;
@@ -1087,17 +1130,17 @@ int *Row::getData()
         data[i] = parent[pts[i].x][pts[i].y];
     return data;
 }
-int *Row::tempArray(int row[],int player)
+int *RowInfo::tempArray(int RowInfo[],int player)
 {
     int i;
     int *temp = new int[A];
     for(i=0;i<A;i++)
         temp[i] = WALL;
     for(i=0;i<length;i++)
-        temp[i+1] = (  row[i]!=player  &&  row[i]!=EMPTY  )?WALL:row[i];
+        temp[i+1] = (  RowInfo[i]!=player  &&  RowInfo[i]!=EMPTY  )?WALL:RowInfo[i];
     return temp;
 }
-void Row::print()
+void RowInfo::print()
 {
     stringstream ss;
     string s;
@@ -1110,7 +1153,7 @@ void Row::print()
     ss>>s;
     qDebug() << s.c_str();
 }
-int Row::numOfTwo(int temp[],int player)
+int RowInfo::numOfTwo(int temp[],int player)
 {
     int i=0,num=0;
     int flag = 0;
@@ -1167,7 +1210,7 @@ int Row::numOfTwo(int temp[],int player)
     }
     return num;
 }
-int Row::numOfSleepThree(int temp[],int player)
+int RowInfo::numOfSleepThree(int temp[],int player)
 {
     int j,p3=player*player*player;
     int i=1,num=0;
@@ -1219,7 +1262,7 @@ int Row::numOfSleepThree(int temp[],int player)
     }
     return num;
 }
-int Row::numOfAliveThree(int temp[],int player)
+int RowInfo::numOfAliveThree(int temp[],int player)
 {
     int i=0,num=0,p2 = player*player;
     for(i=2;i<A-3;i++)
@@ -1239,7 +1282,7 @@ int Row::numOfAliveThree(int temp[],int player)
     }
     return num;
 }
-int Row::numOfSleepFour(int temp[],int player)
+int RowInfo::numOfSleepFour(int temp[],int player)
 {
     int p2=player*player;
     int i=1,num=0;
@@ -1264,7 +1307,7 @@ int Row::numOfSleepFour(int temp[],int player)
     }
     return num;
 }
-int Row::numOfAliveFour(int temp[],int player)
+int RowInfo::numOfAliveFour(int temp[],int player)
 {
     int i=0,p3 = player*player*player;
     int value = 1;
@@ -1281,7 +1324,7 @@ int Row::numOfAliveFour(int temp[],int player)
     }
     return 0;
 }
-int Row::numOfFive(int temp[],int player)
+int RowInfo::numOfFive(int temp[],int player)
 {
     int i=0,p4 = player*player*player*player;
     int value = 1;

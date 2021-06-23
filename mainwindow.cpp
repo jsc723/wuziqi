@@ -192,6 +192,7 @@ void MainWindow::refresh()
     delete work;
     work = NULL;
     repaint();
+    //board.print();
 }
 
 
@@ -218,9 +219,7 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
     int x = xx;
     int y = yy;
     busy = true;
-    int player = USR;
-    if(twoPlayer&&board.count%2==1)
-        player = COM;
+    int player = board.nextPlayer(USR);
     if(!board.put(x,y,player))
     {
         event->ignore();
@@ -692,4 +691,11 @@ void MainWindow::on_actionLoad_triggered()
 void MainWindow::on_actionSave_triggered()
 {
 
+}
+
+void MainWindow::on_actionCalculate_triggered()
+{
+    work = new WorkerThread(&board,this);
+    connect(work, SIGNAL(done()), this, SLOT(refresh()));
+    work->start();
 }
