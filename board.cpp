@@ -13,8 +13,10 @@ Board::Board()
     justHuiqi = false;
     dif = true;
     info = BoardInfo();
-    for(int i= 0;i<225;i++)
+    for(int i= 0;i<225;i++) {
         table[i/R][i%R] = EMPTY;
+        neighborCount[i/R][i%R] = 0;
+    }
     for(i=0;i<R;i++)
         hash[i] = new RowInfo(table,Point(0,i),down);
     for(i=0;i<R;i++)
@@ -117,6 +119,19 @@ bool Board::put(int x,int y,int player)
     }
     return false;
 }
+bool Board::putAndUpdateNeighbor(int x,int y,int player)
+{
+    if(put(x, y, player)) {
+        int i,j;
+        for(i=std::max(0,x-2);i<=std::min(R-1,x+2);i++) {
+            for(j=std::max(0,y-2);j<=std::min(R-1,y+2);j++) {
+                neighborCount[i][j]++;
+            }
+        }
+        return true;
+    }
+    return false;
+}
 bool Board::put(Point p, int player)
 {
     return put(p.x,p.y,player);
@@ -140,8 +155,20 @@ bool Board::del(int x,int y)
         flashHash(x,y);
         return true;
     }
-    else
-        return false;
+    return false;
+}
+bool Board::delAndUpdateNeighbor(int x,int y)
+{
+    if(del(x, y)) {
+        int i,j;
+        for(i=std::max(0,x-2);i<=std::min(R-1,x+2);i++) {
+            for(j=std::max(0,y-2);j<=std::min(R-1,y+2);j++) {
+                neighborCount[i][j]--;
+            }
+        }
+        return true;
+    }
+    return false;
 }
 bool Board::del(Point p)
 {
@@ -150,8 +177,12 @@ bool Board::del(Point p)
 
 void Board::huiqi(bool once)
 {
-    if(count-1>=0)del(steps[count-1]);
-    if(count-1>=0&&!once)del(steps[count-1]);
+    if(count-1>=0){
+        delAndUpdateNeighbor(steps[count-1].x, steps[count-1].y);
+    }
+    if(count-1>=0&&!once) {
+        delAndUpdateNeighbor(steps[count-1].x, steps[count-1].y);
+    }
     justHuiqi = true;
 }
 void Board::userInput()
@@ -170,7 +201,7 @@ void Board::userInput()
         printf("Retry:\n");
     }
     steps[count] = Point(x,y);
-    put(x,y,USR);
+    putAndUpdateNeighbor(x,y,USR);
 done:
     print();
 }
@@ -191,7 +222,7 @@ void Board::compInput()
     else
     {
         Point forcast[6];
-        int extreme = player == COM ? 100000 : -100000;
+        int extreme = player == COM ? INT_MAX : INT_MIN;
         score = thinkAbout(forcast, MAX_LEVEL, player, extreme);
         x = forcast[MAX_LEVEL].x;
         y = forcast[MAX_LEVEL].y;
@@ -203,7 +234,7 @@ void Board::compInput()
 
 
     steps[count] = Point(x,y);
-    put(x,y,player);
+    putAndUpdateNeighbor(x,y,player);
     //qDebug("%d COM : (x = %d,y = %d)\n",count,x,y);
     qDebug("%d %s : (%c,%d)\n",count,player == COM ? "COM":"USR",
            toColOnBoard(x),toRowOnBoard(y));
@@ -378,11 +409,11 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
 
     else if(nextPlayer==COM) //next is computer
     {
-        double max=-100000;
+        double max=INT_MIN;
         double temp;
         for(int i=0;i<R;i++) for(int j=0;j<R;j++)
         {
-            if(table[i][j] == EMPTY && !(farAway(i,j)))
+            if(table[i][j] == EMPTY && !farAway(i,j))
             {
                 put(i,j,COM);
                 temp = thinkAbout(forcast,level-1,USR,max);
@@ -409,7 +440,7 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
     }
     else if(nextPlayer==USR) //next is user
     {
-        double min=100000;
+        double min=INT_MAX;
         double temp;
         for(int i=0;i<R;i++) for(int j=0;j<R;j++)
         {
@@ -613,15 +644,7 @@ bool Board::VCT(int player, Point &result, int level) {
 /*----------------------------------------farAway------------------------------------------------------*/
 bool Board::farAway(int m,int n)
 {
-    int i,j;
-    for(i=std::max(0,m-2);i<=std::min(R-1,m+2);i++) {
-        for(j=std::max(0,n-2);j<=std::min(R-1,n+2);j++) {
-            if(table[i][j] != EMPTY) {
-                return false;
-            }
-        }
-    }
-    return true;
+    return neighborCount[m][n] == 0;
 }
 bool Board::noNeighbor(int m,int n)
 {

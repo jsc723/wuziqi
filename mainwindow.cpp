@@ -220,7 +220,7 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
     int y = yy;
     busy = true;
     int player = board.nextPlayer(USR);
-    if(!board.put(x,y,player))
+    if(!board.putAndUpdateNeighbor(x,y,player))
     {
         event->ignore();
         busy = false;
@@ -643,6 +643,8 @@ void MainWindow::sendMessage(MessageType type, int x, int y, int player, QString
         out<<bindOppid;
     case Move:
         out<<x<<y<<player;
+        break;
+    default:
         break;
     }
     udpSocket->writeDatagram(data,data.length(),QHostAddress::Broadcast,port);

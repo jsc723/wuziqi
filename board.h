@@ -167,11 +167,13 @@ public:
 	void flashHash(int x,int y);
 	bool isFull(){return count==225;}
 	bool isEmpty(){return count==0;}
-	bool put(int x,int y,int player);
+    bool put(int x,int y,int player);
     bool put(Point p,int player);
 	bool put(char *s,int player);
+    bool putAndUpdateNeighbor(int x,int y,int player);
 	bool del(int x,int y);
     bool del(Point p);
+    bool delAndUpdateNeighbor(int x,int y);
 	void userInput();
 	void compInput();
 	void round2(int *x,int *y);
@@ -182,8 +184,7 @@ public:
 	bool farAway(int m,int n);
 	bool noNeighbor(int m,int n);
     int closeToBoundary(int m,int n);
-	double thinkAbout(Point forcast[],int level,int nextPlayer,double parentExtreme);
-    double thinkAbout2(Point forcast[], int level, int nextPlayer, double a, double b);
+    double thinkAbout(Point forcast[],int level,int nextPlayer,double parentExtreme);
     double score(int nextPlayer);
     double otherPlayer(int player) const
         {return player == COM ? USR : COM;}
@@ -221,6 +222,7 @@ public:
     static const int MAX_LEVEL = 3;
 private:
     int table[R][R];
+    int neighborCount[R][R]; //num of neighbor in radius 2
 
 };
 vector<Point> &clean(vector<Point> &vcfForcast);
