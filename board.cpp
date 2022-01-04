@@ -115,8 +115,7 @@ bool Board::put(int x,int y,int player)
         flashHash(x,y);
         return true;
     }
-    else
-        return false;
+    return false;
 }
 bool Board::put(Point p, int player)
 {
@@ -383,40 +382,23 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
         double temp;
         for(int i=0;i<R;i++) for(int j=0;j<R;j++)
         {
-            if(!(farAway(i,j))&&table[i][j] == EMPTY)
+            if(table[i][j] == EMPTY && !(farAway(i,j)))
             {
                 put(i,j,COM);
                 temp = thinkAbout(forcast,level-1,USR,max);
                 if(noNeighbor(i,j))
                     temp-=3;
                 temp -= closeToBoundary(i,j)*10;
-                if(level== MAX_LEVEL)
-                {
-
-                    /*/-----------------------------------------
-                    vcfu.clear();
-                    if(VCTUSR(vcfu,3))
-                    {
-                        temp -= 5000;
-                        qDebug("(%c%d,VCT/VCF USR) ",toColOnBoard(i),toRowOnBoard(j));
-                        //dPrintVCF(vcfu,USR);
-                    }
-
-                    qDebug("(%c%d,[%.1f]) ",toColOnBoard(i),toRowOnBoard(j),temp);
-                    qDebug("---------------");
-                    nowWorkingOn = Point(i,j);
-                    //-------------------------------------------*/
-                }
                 if(temp>max)
                 {
                     max = temp;
                     forcast[level].x = i;
                     forcast[level].y = j;
-                    if(level==MAX_LEVEL)
-                    {
-                        qDebug("[Now Choice %c%d %.1f]",toColOnBoard(i),toRowOnBoard(j),max);
-                        getInfo().showInfo();
-                    }
+//                    if(level==MAX_LEVEL)
+//                    {
+//                        qDebug("[Now Choice %c%d %.1f]",toColOnBoard(i),toRowOnBoard(j),max);
+//                        getInfo().showInfo();
+//                    }
                 }
                 del(i,j);
                 if(max>parentExtreme)
@@ -431,7 +413,7 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
         double temp;
         for(int i=0;i<R;i++) for(int j=0;j<R;j++)
         {
-            if(!(farAway(i,j))&&table[i][j] == EMPTY)
+            if(table[i][j] == EMPTY && !(farAway(i,j)))
             {
                 put(i,j,USR);
                 temp = thinkAbout(forcast,level-1,COM,min);
@@ -631,19 +613,27 @@ bool Board::VCT(int player, Point &result, int level) {
 /*----------------------------------------farAway------------------------------------------------------*/
 bool Board::farAway(int m,int n)
 {
-    int val=1,i,j;
-    for(i=m-2;i<=m+2;i++)for(j=n-2;j<=n+2;j++)
-        if(inRange(i,j)&&!(i==m&&j==n))
-            val *= table[i][j];
-    return val==1;
+    int i,j;
+    for(i=std::max(0,m-2);i<=std::min(R-1,m+2);i++) {
+        for(j=std::max(0,n-2);j<=std::min(R-1,n+2);j++) {
+            if(table[i][j] != EMPTY) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 bool Board::noNeighbor(int m,int n)
 {
-    int val=1,i,j;
-    for(i=m-1;i<=m+1;i++)for(j=n-1;j<=n+1;j++)
-        if(inRange(i,j)&&!(i==m&&j==n))
-            val *= table[i][j];
-    return val==1;
+    int i,j;
+    for(i=std::max(0,m-1);i<=std::min(R-1,m+1);i++) {
+        for(j=std::max(0,n-1);j<=std::min(R-1,n+1);j++) {
+            if(table[i][j] != EMPTY) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 inline int Board::closeToBoundary(int m, int n)
@@ -672,38 +662,7 @@ void Board::flashHash(int x,int y)
     else if(diff>=-10&&diff<0)
         hash[61+(-1)*diff]->flash(&info);
 }
-/*
-BoardInfo Board::getInfoAround(int x,int y)
-{
-    RowInfo *tempHash[H];
-    tempHash[0] = hash[y];
-    tempHash[1] = hash[x+15];
-    int sum = x+y,diff = x-y;
-    if(sum>=4&&sum<=24)
-        tempHash[2] = hash[26+sum];
-    if(diff>=0&&diff<=10)
-        tempHash[3] = hash[51+diff];
-    else if(diff>=-10&&diff<0)
-        tempHash[3] = hash[61+(-1)*diff];
-    BoardInfo info;
-    for(int i=0;i<4;i++)
-    {
-        info.aliveFourCOM += tempHash[i]->aliveFourCOM;
-        info.aliveFourUSR += tempHash[i]->aliveFourUSR;
-        info.aliveThreeCOM += tempHash[i]->aliveThreeCOM;
-        info.aliveThreeUSR += tempHash[i]->aliveThreeUSR;
-        info.fiveCOM += tempHash[i]->fiveCOM;
-        info.fiveUSR += tempHash[i]->fiveUSR;
-        info.sleepFourCOM += tempHash[i]->sleepFourCOM;
-        info.sleepFourUSR += tempHash[i]->sleepFourUSR;
-        info.sleepThreeCOM += tempHash[i]->sleepThreeCOM;
-        info.sleepThreeUSR += tempHash[i]->sleepThreeUSR;
-        info.twoCOM +=  tempHash[i]->twoCOM;
-        info.twoUSR +=  tempHash[i]->twoUSR;
-    }
-    return info;
-}
-*/
+
 BoardInfo Board::getInfo()
 {
     return info;

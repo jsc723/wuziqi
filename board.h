@@ -220,7 +220,7 @@ public:
 
     static const int MAX_LEVEL = 3;
 private:
-	int table[R][R];
+    int table[R][R];
 
 };
 vector<Point> &clean(vector<Point> &vcfForcast);

@@ -32,6 +32,8 @@ enum MessageType{Message,\
                  Disconnect,Move,\
                  WantNewGame,AcceptNewGame,RefuseNewGame};
 enum WindowSizeType{Normal,Extend};
+
+
 class WorkerThread : public QThread
 {
     Q_OBJECT
@@ -53,6 +55,8 @@ signals:
 private:
     Board *b;
 };
+
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
