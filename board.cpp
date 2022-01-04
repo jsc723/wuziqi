@@ -420,12 +420,9 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
                 }
                 del(i,j);
                 if(max>parentExtreme)
-                    goto end_loop;
+                    return max;
             }
         }
-        end_loop:
-        if(level==MAX_LEVEL)
-            printf("\n");
         return max;
     }
     else if(nextPlayer==USR) //next is user
@@ -448,10 +445,9 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
                 }
                 del(i,j);
                 if(min<parentExtreme)
-                    goto end_loop2;
+                    return min;
             }
         }
-        end_loop2:
         return min;
     }
     return 0;
@@ -488,66 +484,7 @@ double Board::score(int nextPlayer)
 
     return player == COM ? score : -score;
 }
-/*
-double Board::scoreAsCOM()
-{
-    double score=0;
-    BoardInfo info = getInfo();
-    double k;
 
-    if(first==USR&&count<20)
-        k = 1.5;
-    else
-        k = 0.9;
-    if(info.fiveCOM>0)
-        return 20000;
-    if(info.aliveFourUSR>0)
-        return -10000;
-    if(info.sleepFourUSR>0)
-        return -9000;
-    if(info.aliveFourCOM>0)
-        return 8000;
-
-    if(info.aliveThreeUSR>0&&info.sleepFourCOM>0)
-        score -= 12;
-    else if(info.aliveThreeUSR>0&&info.sleepFourCOM==0)
-        score -= 20000;
-
-    score += lim(info.aliveThreeCOM,info.sleepFourCOM);
-    score +=   (5*info.twoCOM + 7*info.sleepThreeCOM) -  k*(5*info.twoUSR  +  7*info.sleepThreeUSR);
-
-    return score;
-}
-
-double Board::scoreAsUSR()
-{
-    double score=0;
-    BoardInfo info = getInfo();
-    int k;
-    if(first==USR&&count<20)
-        k = 1.5;
-    else
-        k = 1;
-    if(info.fiveUSR>0)
-        return 20000;
-    if(info.aliveFourCOM>0)
-        return -10000;
-    if(info.sleepFourCOM>0)
-        return -9000;
-    if(info.aliveFourUSR>0)
-        return 8000;
-
-    if(info.aliveThreeCOM>0&&info.sleepFourUSR>0)
-        score -= 12;
-    else if(info.aliveThreeCOM>0&&info.sleepFourUSR==0)
-        score -= 20000;
-
-    score += lim(info.aliveThreeUSR,info.sleepFourUSR);
-    score -=   5*info.twoCOM + 7*info.sleepThreeCOM -  (5*info.twoUSR  +  7*info.sleepThreeUSR);
-
-    return score;
-}
-*/
 vector<Point> &clean(vector<Point> &vcfForcast) {
     vcfForcast.clear();
     return vcfForcast;
@@ -624,139 +561,6 @@ bool Board::VCF(int player, vector<Point> &vcfForcast,int level) {
     }
     return false;
 }
-/*
-bool Board::VCFCOM(vector<Point> &vcfForcast,int level)
-{
-    int i,j;
-    bool findVCF = false;
-    if(isFull())
-        return false;
-    BoardInfo info = getInfo();
-    if(info.aliveFourCOM + info.sleepFourCOM>0)
-        return true;
-    if(info.aliveFourUSR+info.sleepFourUSR>0)
-        return false;
-    if(info.aliveThreeCOM>0)
-        return true;
-    if(level>0)
-    {
-        for(i=0;i<H && !findVCF;i++)
-        {
-            if(hash[i]->sleepThreeCOM>0)
-            {
-                Point pt,pt2;
-                for(j=0;j < hash[i]->length && !findVCF;j++)
-                {
-                    pt = hash[i]->pts[j];
-                    if(put(pt.x,pt.y,COM)) //若此处为空则下子
-                    {
-                        if(hash[i]->sleepFourCOM==1) //冲四
-                        {
-                            bool blocked = false;\
-                            for(int k = 0;k<hash[i]->length && !findVCF && !blocked;k++) //对方堵四
-                            {
-                                pt2 = hash[i]->pts[k];
-                                if(put(pt2.x,pt2.y,USR))//若此处为空则下子
-                                {
-                                    if(hash[i]->sleepFourCOM==0) //若刚刚一步堵掉了冲四
-                                    {
-                                        blocked = true;
-                                        vcfForcast.push_back(pt);//入栈记录
-                                        vcfForcast.push_back(pt2);
-                                        findVCF = VCFCOM(vcfForcast,level-1);//递归，计算下一步冲四
-                                        if(!findVCF)
-                                        {
-                                            vcfForcast.pop_back();//出栈
-                                            vcfForcast.pop_back();
-                                        }
-                                        del(pt2.x,pt2.y);
-                                        break;
-                                    }
-                                    del(pt2.x,pt2.y);//出栈
-                                }
-                            }
-                            if(blocked==false || findVCF) //如果对方堵不掉
-                            {
-                                //vcfForcast.insert(vcfForcast.begin(),pt2);
-                                //vcfForcast.insert(vcfForcast.begin(),pt);//保存
-                                del(pt.x,pt.y);
-                                return true;
-                            }
-                        }
-                        del(pt.x,pt.y);//出栈
-                    }
-                }
-            }
-        }
-        return findVCF;
-    }
-    return false;
-}
-bool Board::VCFUSR(vector<Point> &vcfForcast,int level)
-{
-    int i,j;
-    bool findVCF = false;
-    if(isFull())
-        return false;
-    BoardInfo info = getInfo();
-    if(info.aliveFourUSR+info.sleepFourUSR>0)
-        return true;
-    if(info.aliveFourCOM+info.sleepFourCOM>0)
-        return false;
-    if(info.aliveThreeUSR>0)
-        return true;
-    if(level<=0)
-        return false;
-    for(i=0;i<H && !findVCF;i++)
-    {
-        if(hash[i]->sleepThreeUSR>0)
-        {
-            Point pt,pt2;
-            for(j=0;j < hash[i]->length && !findVCF;j++)
-            {
-                pt = hash[i]->pts[j];
-                if(put(pt.x,pt.y,USR))
-                {
-                    if(hash[i]->sleepFourUSR==1)
-                    {
-                        bool blocked = false;
-                        for(int k = 0;k<hash[i]->length && !findVCF && !blocked;k++) //对方堵四
-                        {
-                            pt2 = hash[i]->pts[k];
-                            if(put(pt2.x,pt2.y,COM))//若此处为空则下子
-                            {
-                                if(hash[i]->sleepFourUSR==0) //若刚刚一步堵掉了冲四
-                                {
-                                    blocked = true;
-                                    vcfForcast.push_back(pt);//入栈记录
-                                    vcfForcast.push_back(pt2);
-                                    findVCF = VCFUSR(vcfForcast,level-1);//递归，计算下一步冲四
-                                    if(!findVCF)
-                                    {
-                                        vcfForcast.pop_back();//出栈
-                                        vcfForcast.pop_back();
-                                    }
-                                    del(pt2.x,pt2.y);
-                                    break;
-                                }
-                                del(pt2.x,pt2.y);//出栈
-                            }
-                        }
-                        if(blocked==false) //如果对方堵不掉
-                        {
-                            del(pt.x,pt.y);
-                            return true;
-                        }
-                    }
-                    del(pt.x,pt.y);//出栈
-                }
-            }
-        }
-    }
-    return findVCF;
-}
-*/
-
 
 bool Board::VCT(int player, Point &result, int level) {
     int i,j;
@@ -822,137 +626,7 @@ bool Board::VCT(int player, Point &result, int level) {
     return false;
 
 }
-/*
-bool Board::VCTCOM(vector<Point> &vcfForcast, int level)
-{
-    int i,j;
-    bool findVCT = false;
-    bool blocked = false;
-    vector<Point> tempVcf;
 
-    if(VCF(COM, vcfForcast,level))
-        return true;
-    if(level<=0)
-        return false;
-    bool carefulVCFUSR = VCF(USR, tempVcf,3);
-    for(i=0;i<H && !findVCT;i++)
-    {
-        if(hash[i]->twoCOM + hash[i]->sleepThreeCOM >0)
-        {
-            Point pt,pt2;
-            for(j=0;j < hash[i]->length && !findVCT;j++)
-            {
-                pt = hash[i]->pts[j];
-                if(put(pt.x,pt.y,COM))
-                {
-                    int numOfAttack = info.aliveThreeCOM + info.sleepFourCOM;
-                    if(numOfAttack >=1) //冲三/冲四
-                    {
-                        tempVcf.clear();
-                        if(carefulVCFUSR && VCF(USR,tempVcf,3))//TODO
-                        {
-                            del(pt);
-                            continue;
-                        }
-                        blocked = false;
-
-                        for(int k = 0;k< hash[i]->length && !blocked;k++) //对方堵
-                        {
-                            pt2 = hash[i]->pts[k];
-                            if(put(pt2.x,pt2.y,USR))//若此处为空则下子
-                            {
-                                if(hash[i]->aliveThreeCOM+ hash[i]->sleepFourCOM==0) //若刚刚一步堵掉了冲三/冲四
-                                {
-                                    findVCT = VCTCOM(vcfForcast,level-1);//递归，计算下一步冲三/冲四
-                                    if(!findVCT)
-                                    {
-                                        blocked = true;
-                                        del(pt2.x,pt2.y);
-                                        break;
-                                    }
-                                }
-                                del(pt2.x,pt2.y);//出栈
-                            }
-                        }
-
-                        if(!blocked) //如果对方堵不掉
-                        {
-                            del(pt.x,pt.y);
-                            vcfForcast.insert(vcfForcast.begin(),1,pt);
-                            return true;
-                        }
-                    }
-                    del(pt.x,pt.y);//出栈
-                }
-            }
-        }
-    }
-    return findVCT;
-}
-
-bool Board::VCTUSR(vector<Point> &vcfForcast, int level)
-{
-    int i,j;
-    bool findVCT = false;
-    bool blocked = false;
-    vector<Point> tempVcf;
-
-    if(VCF(USR, vcfForcast,level))
-        return true;
-    if(level<=0)
-        return false;
-    bool carefulVCFCOM = VCF(COM, tempVcf,3);
-    for(i=0;i<H && !findVCT;i++)
-    {
-        if(hash[i]->twoUSR + hash[i]->sleepThreeUSR >0)
-        {
-            Point pt,pt2;
-            for(j=0;j < hash[i]->length && !findVCT;j++)
-            {
-                pt = hash[i]->pts[j];
-                if(put(pt.x,pt.y,USR))
-                {
-                    if(hash[i]->aliveThreeUSR + hash[i]->sleepFourUSR > 0) //冲三/冲四
-                    {
-                        if(carefulVCFCOM && VCF(COM,tempVcf,3))
-                        {
-                            del(pt);
-                            continue;
-                        }
-                        blocked = false;
-                        for(int k = 0;k<hash[i]->length && !blocked;k++) //对方堵
-                        {
-                            pt2 = hash[i]->pts[k];
-                            if(put(pt2.x,pt2.y,COM))//若此处为空则下子
-                            {
-                                if(hash[i]->aliveThreeUSR+ hash[i]->sleepFourUSR==0) //若刚刚一步堵掉了冲三/冲四
-                                {
-                                    findVCT = VCTUSR(vcfForcast,level-1);//递归，计算下一步冲三/冲四
-                                    if(!findVCT)
-                                    {
-                                        blocked = true;
-                                        del(pt2.x,pt2.y);
-                                        break;
-                                    }
-                                }
-                                del(pt2.x,pt2.y);//出栈
-                            }
-                        }
-                        if(blocked==false) //如果对方堵不掉
-                        {
-                            del(pt.x,pt.y);
-                            vcfForcast.insert(vcfForcast.begin(),1,pt);
-                            return true;
-                        }
-                    }
-                    del(pt.x,pt.y);//出栈
-                }
-            }
-        }
-    }
-    return findVCT;
-}
-*/
 
 /*----------------------------------------farAway------------------------------------------------------*/
 bool Board::farAway(int m,int n)

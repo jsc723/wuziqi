@@ -185,14 +185,10 @@ public:
 	double thinkAbout(Point forcast[],int level,int nextPlayer,double parentExtreme);
     double thinkAbout2(Point forcast[], int level, int nextPlayer, double a, double b);
     double score(int nextPlayer);
-    //double scoreAsCOM();
-    //double scoreAsUSR();
     double otherPlayer(int player) const
         {return player == COM ? USR : COM;}
     double lim(int three, int four, bool consertive);
     bool VCF(int player, vector<Point> &vcfForcast,int level);
-    //bool VCFCOM(vector<Point> &vcfForcast,int level);
-    //bool VCFUSR(vector<Point> &vcfForcast,int level);
     bool VCT(int player, Point &result, int level);
     bool VCTCOM(vector<Point> &vcfForcast,int level);
     bool VCTUSR(vector<Point> &vcfForcast,int level);
@@ -209,8 +205,7 @@ public:
     int toRowOnTable(int row) const;
     int nextPlayer(int starter) const;
 
-	BoardInfo getInfo();
-    //BoardInfo getInfoAround(int x,int y);
+    BoardInfo getInfo();
     RowInfo *hash[H];
     Point steps[R*R];
 	vector<Point> vcf,vcfu;
