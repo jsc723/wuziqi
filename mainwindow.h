@@ -15,6 +15,7 @@
 #include "board.h"
 #include "getmsgdialog.h"
 #include "searchplayerdialog.h"
+#include "signupdialog.h"
 
 /* Constants */
 #define XX 60
@@ -104,11 +105,9 @@ private slots:
     void refresh();
     void showReport();
 
-    void on_actionLoad_triggered();
-
-    void on_actionSave_triggered();
-
     void on_actionCalculate_triggered();
+
+    void on_actionsignup_triggered();
 
 private:
     bool checkBind(int senderId){
@@ -120,6 +119,7 @@ private:
     Board board;
     QLabel *statusLabel;
     searchPlayerDialog *searchDlg;
+    SignUpDialog *signupDlg;
     QString title;
     bool busy;
     bool twoPlayer;

@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "board.h"
 #include "ui_mainwindow.h"
+#include "signupdialog.h"
 #include <ctime>
 #include <cstdlib>
 #include <QThread>
@@ -21,6 +22,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow),
     udpSocket(new QUdpSocket(this)),
     searchDlg(new searchPlayerDialog(this)),
+    signupDlg(new SignUpDialog(this)),
     statusLabel(new QLabel(this)),
     port(45654),
     busy(false),
@@ -52,11 +54,12 @@ MainWindow::MainWindow(QWidget *parent) :
     pal.setColor(QPalette::Base,QColor(200,200,200,100));
     ui->textBrowser->setPalette(pal);
 
-    title = tr("连珠高手 4.0beta - ID%1").arg(id);
+    title = tr("连珠高手 4.0 - ID%1").arg(id);
     setWindowTitle(title);
     ui->textBrowser->setCurrentFont(QFont("Time New Roman",11));
 
     ui->statusBar->addWidget(statusLabel);
+    //ui->menuBar->addMenu(tr("File"));
 
     connect(searchDlg,SIGNAL(getIDToConnect(int)),this,SLOT(sendInvition(int)));
     connect(ui->userNameLineEdit,SIGNAL(textChanged(QString)),this,SLOT(setTitle(QString)));
@@ -318,7 +321,7 @@ void MainWindow::printResult()
         if(board.winner()==USR)
             QMessageBox::warning(this,tr(" "),tr("你赢了！"),QMessageBox::Ok);
         else if(board.winner()==COM)
-            QMessageBox::warning(this,tr("呵呵"),tr("电脑赢了"),QMessageBox::Ok);
+            QMessageBox::warning(this,tr(" "),tr("电脑赢了！"),QMessageBox::Ok);
         else
             QMessageBox::warning(this,tr(" "),tr("平局"),QMessageBox::Ok);
     }
@@ -684,20 +687,15 @@ void MainWindow::on_sizeButton_clicked()
     }
 }
 
-void MainWindow::on_actionLoad_triggered()
-{
-    string path = "hhh";
-    qDebug(path.c_str());
-}
-
-void MainWindow::on_actionSave_triggered()
-{
-
-}
-
 void MainWindow::on_actionCalculate_triggered()
 {
     work = new WorkerThread(&board,this);
     connect(work, SIGNAL(done()), this, SLOT(refresh()));
     work->start();
 }
+
+void MainWindow::on_actionsignup_triggered()
+{
+    signupDlg->exec();
+}
+

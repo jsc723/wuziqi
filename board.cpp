@@ -34,8 +34,10 @@ void Board::reset()
 {
     count = 0;
     justHuiqi = false;
-    for(int i= 0;i<225;i++)
+    for(int i= 0;i<225;i++) {
         table[i/R][i%R] = EMPTY;
+        neighborCount[i/R][i%R] = 0;
+    }
     flashHash();
 }
 
