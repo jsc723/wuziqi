@@ -31,6 +31,20 @@ public:
 	int x;
 	int y;
 };
+struct Tuple3
+{
+    int x;
+    int y;
+    int z;
+    Tuple3(): x(0), y(0), z(0) {}
+    Tuple3(int x, int y, int z): x(x), y(y), z(z) {}
+};
+inline bool operator<(const Tuple3 &t1, const Tuple3 &t2) {
+    if (t1.x != t2.x) return t1.x < t2.x;
+    if (t1.y != t2.y) return t1.y < t2.y;
+    return t1.z < t2.z;
+}
+
 //------------------------------------RowInfo------------------------------------------------//
 class Info
 {
@@ -110,12 +124,16 @@ public:
     int numOfFive(int temp[],int player);
     void flash(BoardInfo *info);
     int getLength(){return length;}
+    int getNonEmptyCount() {return nonEmpty;}
     void print();
 
     Point pts[R];
     int *data;
     int (*parent)[R];
     int length;
+private:
+    int countNonEmpty();
+    int nonEmpty;
 };
 class BoardInfo : public Info
 {
@@ -184,10 +202,11 @@ public:
 	bool farAway(int m,int n);
 	bool noNeighbor(int m,int n);
     int closeToBoundary(int m,int n);
-    double thinkAbout(Point forcast[],int level,int nextPlayer,double parentExtreme);
+    double thinkAbout(Point forcast[],int level,int nextPlayer,double parentExtreme, qint64 deadline);
     double score(int nextPlayer);
     double otherPlayer(int player) const
         {return player == COM ? USR : COM;}
+    int nonEmptyCount(int x, int y);
     double lim(int three, int four, bool consertive);
     bool VCF(int player, vector<Point> &vcfForcast,int level);
     bool VCT(int player, Point &result, int level);
@@ -217,15 +236,19 @@ public:
     bool dif;
     BoardInfo info;
 
-    Point nowWorkingOn;
+    volatile Point nowWorkingOn;
+    volatile double nowPercentage;
 
-    static const int MAX_LEVEL = 3;
+    static const int MAX_LEVEL = 5;
+    int cur_level;
 private:
     int table[R][R];
     int neighborCount[R][R]; //num of neighbor in radius 2
-
+    static const qint64 MaxThinkTime = 10000; //in msec, 10s
 };
 vector<Point> &clean(vector<Point> &vcfForcast);
+
+
 
 
 

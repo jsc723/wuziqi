@@ -15,6 +15,7 @@
 #include <QDesktopWidget>
 #include <QTimer>
 #include <QTime>
+#include <QDateTime>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -84,7 +85,7 @@ void MainWindow::showReport()
     if(busy && !twoPlayer && !isConnected) {
         char c = board.toColOnBoard(board.nowWorkingOn.x);
         int r = board.toRowOnBoard(board.nowWorkingOn.y);
-        int per = (15*board.nowWorkingOn.x + board.nowWorkingOn.y)*100/255;
+        int per = board.nowPercentage;
         statusLabel->setText(tr("电脑思考中,正在思考%1%2 (%3\%)").arg(c).arg(r).arg(per));
     }
     timer->start(500);
@@ -149,7 +150,9 @@ void MainWindow::closeEvent(QCloseEvent *event)
         event->ignore();
         break;
     }
-    if(isConnected)on_actionDisconnect_triggered();
+    if(isConnected) {
+        on_actionDisconnect_triggered();
+    }
 }
 
 void MainWindow::paintEvent(QPaintEvent *)
@@ -172,9 +175,10 @@ void MainWindow::paintEvent(QPaintEvent *)
         }
     }
     tempPainter.setPen(Qt::black);
-    if(board.count>0)
+    if(board.count>0) {
         tempPainter.drawPixmap((board.steps[board.count-1].x*40+13)*fac
                 ,(board.steps[board.count-1].y*40+14)*fac,flag);
+    }
     painter.drawPixmap(0,0,nowBoard);
 
 }
@@ -192,7 +196,6 @@ void MainWindow::refresh()
     delete work;
     work = NULL;
     repaint();
-    //board.print();
 }
 
 
@@ -265,18 +268,6 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
     connect(work, SIGNAL(done()), this, SLOT(refresh()));
     work->start();
 
-    /*
-    if(board.winner()!=0||board.count==225)
-    {
-        printResult();
-        ui->toolButton->setEnabled(false);
-        ui->mainToolBar->actions()[1]->setEnabled(false);
-        busy = false;
-        return;
-    }
-    busy = false;
-    statusLabel->setText(tr(""));
-*/
 }
 
 /*----------------------------------------printResult------------------------------------------------------*/
@@ -307,7 +298,9 @@ void MainWindow::printResult()
             oppScore++;
         }
         else
+        {
             QMessageBox::warning(this,tr(" "),tr("平局"),QMessageBox::Ok);
+        }
         QString p1 = tr("ID%1").arg(id),p2=tr("ID%1").arg(bindOppid);
         if(ui->userNameLineEdit->text()!="") p1 = ui->userNameLineEdit->text();
         if(bindOppName!="") p2 = bindOppName;

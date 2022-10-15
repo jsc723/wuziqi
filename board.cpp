@@ -5,18 +5,23 @@
 #include<QDebug>
 #include<sstream>
 #include <QString>
+#include <QDateTime>
 
 Board::Board()
 {
     int i;
+    dif = true;
+
     count = 0;
     justHuiqi = false;
-    dif = true;
     info = BoardInfo();
+    nowPercentage = 0.0;
+    cur_level = MAX_LEVEL;
     for(int i= 0;i<225;i++) {
         table[i/R][i%R] = EMPTY;
         neighborCount[i/R][i%R] = 0;
     }
+
     for(i=0;i<R;i++)
         hash[i] = new RowInfo(table,Point(0,i),down);
     for(i=0;i<R;i++)
@@ -34,8 +39,13 @@ void Board::reset()
 {
     count = 0;
     justHuiqi = false;
-    for(int i= 0;i<225;i++)
+    info = BoardInfo();
+    nowPercentage = 0.0;
+    cur_level = MAX_LEVEL;
+    for(int i= 0;i<225;i++) {
         table[i/R][i%R] = EMPTY;
+        neighborCount[i/R][i%R] = 0;
+    }
     flashHash();
 }
 
@@ -221,11 +231,24 @@ void Board::compInput()
     else if(dif && tryVCT(&x, &y, player)) { }
     else
     {
-        Point forcast[6];
+        Point forcast[60];
         int extreme = player == COM ? INT_MAX : INT_MIN;
-        score = thinkAbout(forcast, MAX_LEVEL, player, extreme);
-        x = forcast[MAX_LEVEL].x;
-        y = forcast[MAX_LEVEL].y;
+        qDebug() << "cur level = " << cur_level;
+        qint64 deadline = QDateTime::currentMSecsSinceEpoch() + MaxThinkTime;
+        score = thinkAbout(forcast, cur_level, player, extreme, deadline);
+        x = forcast[cur_level].x;
+        y = forcast[cur_level].y;
+
+        if (nowPercentage < 50) {
+            cur_level = max(3, cur_level - 2);
+            deadline = QDateTime::currentMSecsSinceEpoch() + MaxThinkTime;
+            score = thinkAbout(forcast, cur_level, player, extreme, deadline);
+            x = forcast[cur_level].x;
+            y = forcast[cur_level].y;
+        }
+
+        nowPercentage = 0;
+
         if(score<-5000)
         {
             afterCheck(&x,&y, player);
@@ -235,10 +258,8 @@ void Board::compInput()
 
     steps[count] = Point(x,y);
     putAndUpdateNeighbor(x,y,player);
-    //qDebug("%d COM : (x = %d,y = %d)\n",count,x,y);
     qDebug("%d %s : (%c,%d)\n",count,player == COM ? "COM":"USR",
            toColOnBoard(x),toRowOnBoard(y));
-    //getInfo().showInfo();
 }
 void Board::round2(int *x,int *y)
 {
@@ -391,10 +412,10 @@ bool Board::tryVCT(int *x, int *y, int player) {
     return false;
 }
 
+
 //------------------------------------------------------------------computer input END
-double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentExtreme)
+double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentExtreme, qint64 deadline)
 {
-    Point pt;
     if(level==0)
     {
         return score(nextPlayer);
@@ -404,46 +425,68 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
     else if(isFull())
         return 0;
 
-    else if(nextPlayer==COM) //next is computer
+    else if(nextPlayer==COM) //next is computer, maximizing
     {
         double max=INT_MIN;
         double temp;
+        vector<Tuple3> orders;
         for(int i=0;i<R;i++) for(int j=0;j<R;j++)
         {
             if(table[i][j] == EMPTY && !farAway(i,j))
             {
-                put(i,j,COM);
-                if (level == MAX_LEVEL) {
-                    nowWorkingOn.x = i;
-                    nowWorkingOn.y = j;
-                }
-                temp = thinkAbout(forcast,level-1,USR,max);
-                if(noNeighbor(i,j))
-                    temp-=3;
-                temp -= closeToBoundary(i,j)*10;
-                if(temp>max)
-                {
-                    max = temp;
-                    forcast[level].x = i;
-                    forcast[level].y = j;
-                }
-                del(i,j);
-                if(max>parentExtreme)
-                    return max;
+                orders.push_back(Tuple3(-nonEmptyCount(i, j), i, j));
+            }
+        }
+        sort(orders.begin(), orders.end());
+        for(int k = 0; k < orders.size(); k++)
+        {
+            int i = orders[k].y, j = orders[k].z;
+            put(i,j,COM);
+            if (level == MAX_LEVEL) {
+                nowWorkingOn.x = i;
+                nowWorkingOn.y = j;
+                nowPercentage = 100.0*k / orders.size();
+            }
+            temp = thinkAbout(forcast,level-1,USR,max,deadline);
+            if(noNeighbor(i,j))
+                temp-=3;
+            temp -= closeToBoundary(i,j)*10;
+            if(temp>max)
+            {
+                max = temp;
+                forcast[level] = Point(i,j);
+            }
+            del(i,j);
+            if(max>=parentExtreme)
+                return max;
+
+            qint64 cur = QDateTime::currentMSecsSinceEpoch();
+
+            if (cur >= deadline) {
+                return max;
             }
         }
         return max;
     }
-    else if(nextPlayer==USR) //next is user
+    else if(nextPlayer==USR) //next is user, minimizing
     {
         double min=INT_MAX;
         double temp;
+        vector<Tuple3> orders;
         for(int i=0;i<R;i++) for(int j=0;j<R;j++)
         {
-            if(table[i][j] == EMPTY && !(farAway(i,j)))
+            if(table[i][j] == EMPTY && !farAway(i,j))
+            {
+                orders.push_back(Tuple3(-nonEmptyCount(i, j), i, j));
+            }
+        }
+        sort(orders.begin(), orders.end());
+        for(int k = 0; k < orders.size(); k++)
+        {
+            int i = orders[k].y, j = orders[k].z;
             {
                 put(i,j,USR);
-                temp = thinkAbout(forcast,level-1,COM,min);
+                temp = thinkAbout(forcast,level-1,COM,min,deadline);
                 if(noNeighbor(i,j))
                     temp+=3;
                 temp += closeToBoundary(i,j)*10;
@@ -453,7 +496,7 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
                     forcast[level] = Point(i,j);
                 }
                 del(i,j);
-                if(min<parentExtreme)
+                if(min<=parentExtreme)
                     return min;
             }
         }
@@ -467,29 +510,33 @@ double Board::score(int nextPlayer)
     double score=0;
     double k;
     int player = otherPlayer(nextPlayer);
-    bool consertive = (first == nextPlayer && count<20);
+    bool conservative = (first == nextPlayer && count<20);
 
-    if(consertive)
-        k = 1.5 - count * 0.02;
+    if(conservative)
+        k = 1.6 - count * 0.03;
     else
-        k = 0.9;
+        k = 1.0;
+
+    score +=   (5*info.getTwo(player) + 7*info.getSleepThree(player))
+            -  k * (5*info.getTwo(nextPlayer)  +  7*info.getSleepThree(nextPlayer));
+
     if(info.getFive(player)>0)
-        return 20000;
+        return score + 20000;
     if(info.getAliveFour(nextPlayer) + info.getSleepFour(nextPlayer)>0)
-        return -20000;
+        return score - 20000;
     if(info.getAliveFour(player)>0)
-        return 8000;
+        return score + 8000;
 
     if(info.getAliveThree(nextPlayer) > 0) {
         if(info.getSleepFour(player) == 0)
-            return -20000;
-        else
-            score -= 12;
+            return score - 20000;
+        else {
+            score += 3;
+        }
     }
 
-    score += lim(info.getAliveThree(player), info.getSleepFour(player), consertive);
-    score +=   (5*info.getTwo(player) + 7*info.getSleepThree(player))
-                -  k * (5*info.getTwo(nextPlayer)  +  7*info.getSleepThree(nextPlayer));
+    score += lim(info.getAliveThree(player), info.getSleepFour(player), conservative);
+
 
     return player == COM ? score : -score;
 }
@@ -499,13 +546,12 @@ vector<Point> &clean(vector<Point> &vcfForcast) {
     return vcfForcast;
 }
 
-double Board::lim(int three,int four, bool consertive)
+double Board::lim(int three,int four, bool conservative)
 {
-    if(three==1&&four==0) return consertive?3:5;
-    if(three==0&&four==1) return consertive?3:4;
+    if(three==1&&four==0) return conservative?3:5;
+    if(three==0&&four==1) return conservative?3:4;
     if(three>=2&&four==0) return 4000;
-    if(three>=1&&four>=1) return 16000;
-    if(three==0&&four>=2) return 16500;
+    if(three + four >= 2) return 16000;
     return 0;
 }
 bool Board::VCF(int player, vector<Point> &vcfForcast,int level) {
@@ -682,6 +728,20 @@ void Board::flashHash(int x,int y)
         hash[61+(-1)*diff]->flash(&info);
 }
 
+int Board::nonEmptyCount(int x, int y) {
+    int cnt = 0;
+    cnt += hash[y]->getNonEmptyCount();
+    cnt += hash[x+15]->getNonEmptyCount();
+    int sum = x+y,diff = x-y;
+    if(sum>=4&&sum<=24)
+        cnt += hash[26+sum]->getNonEmptyCount();
+    if(diff>=0&&diff<=10)
+        cnt += hash[51+diff]->getNonEmptyCount();
+    else if(diff>=-10&&diff<0)
+        cnt += hash[61+(-1)*diff]->getNonEmptyCount();
+    return cnt;
+}
+
 BoardInfo Board::getInfo()
 {
     return info;
@@ -749,6 +809,7 @@ RowInfo::RowInfo(int t[R][R],Point start,Direction d) :
     parent = t;
     data = 0;
     length = k;
+    nonEmpty = 0;
 }
 void RowInfo::flash(BoardInfo* info)
 {
@@ -770,6 +831,7 @@ void RowInfo::flash(BoardInfo* info)
     sleepFourCOM = numOfSleepFour(tempCOM,COM);
     aliveFourCOM = numOfAliveFour(tempCOM,COM);
     fiveCOM = numOfFive(tempCOM,COM);
+    nonEmpty = countNonEmpty();
     delete[] tempUSR;
     delete[] tempCOM;
     info->add(this);
@@ -992,4 +1054,13 @@ int RowInfo::numOfFive(int temp[],int player)
         }
     }
     return 0;
+}
+int RowInfo::countNonEmpty() {
+    int cnt = 0;
+    for(int i = 0; i < length; i++) {
+        if (data[i] != EMPTY) {
+            cnt++;
+        }
+    }
+    return cnt;
 }
