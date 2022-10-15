@@ -137,7 +137,7 @@ bool Board::put(Point p, int player)
     return put(p.x,p.y,player);
 }
 
-//½ö¹©µ÷ÊÔÊ¹ÓÃ
+//ä»…ä¾›è°ƒè¯•ä½¿ç”¨
 bool Board::put(char *s,int player)
 {
     char c;
@@ -348,7 +348,9 @@ void Board::afterCheck(int *x, int *y, int player)
         {
             if(info.getAliveFour(other)>=1)
             {
-                *x=i;*y=j;del(i,j);return;
+                *x=i;*y=j;
+                del(i,j);
+                return;
             }
             del(i,j);
         }
@@ -359,7 +361,9 @@ void Board::afterCheck(int *x, int *y, int player)
         {
             if(info.getSleepFour(other)+info.getAliveThree(other)>=2)
             {
-                *x=i;*y=j;del(i,j);return;
+                *x=i;*y=j;
+                del(i,j);
+                return;
             }
             del(i,j);
         }
@@ -367,26 +371,19 @@ void Board::afterCheck(int *x, int *y, int player)
 }
 
 bool Board::tryVCF(int *x, int *y, int player) {
-    for(int i=1;i<=10;i+=3)
+    if(VCF(player,clean(vcf),10))
     {
-        if(VCF(player,clean(vcf),i))
-        {
-            dPrintVCF(vcf, player);
-            *x = vcf[0].x;
-            *y = vcf[0].y;
-            return true;
-        }
+        dPrintVCF(vcf, player);
+        *x = vcf[0].x;
+        *y = vcf[0].y;
+        return true;
     }
     return false;
 }
 bool Board::tryVCT(int *x, int *y, int player) {
-    //return false;
     Point vct;
     if(VCT(player,vct,6))
     {
-        qDebug("%s VCT %c%d",
-               player == COM ? "COM" : "USR",
-               toColOnBoard(vct.x),toRowOnBoard(vct.y));
         *x = vct.x;
         *y = vct.y;
         return true;
@@ -416,6 +413,10 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
             if(table[i][j] == EMPTY && !farAway(i,j))
             {
                 put(i,j,COM);
+                if (level == MAX_LEVEL) {
+                    nowWorkingOn.x = i;
+                    nowWorkingOn.y = j;
+                }
                 temp = thinkAbout(forcast,level-1,USR,max);
                 if(noNeighbor(i,j))
                     temp-=3;
@@ -425,11 +426,6 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
                     max = temp;
                     forcast[level].x = i;
                     forcast[level].y = j;
-//                    if(level==MAX_LEVEL)
-//                    {
-//                        qDebug("[Now Choice %c%d %.1f]",toColOnBoard(i),toRowOnBoard(j),max);
-//                        getInfo().showInfo();
-//                    }
                 }
                 del(i,j);
                 if(max>parentExtreme)
@@ -534,40 +530,40 @@ bool Board::VCF(int player, vector<Point> &vcfForcast,int level) {
             for(j=0;j < hash[i]->length;j++)
             {
                 pt = hash[i]->pts[j];
-                if(put(pt.x,pt.y,player)) //Èô´Ë´¦Îª¿ÕÔòÏÂ×Ó
+                if(put(pt.x,pt.y,player)) //è‹¥æ­¤å¤„ä¸ºç©ºåˆ™ä¸‹å­
                 {
-                    if(hash[i]->getSleepFour(player)>=1) //³åËÄ
+                    if(hash[i]->getSleepFour(player)>=1) //å†²å››
                     {
                         bool blocked = false;
-                        for(int k = 0;k<hash[i]->length && !blocked;k++) //¶Ô·½¶ÂËÄ
+                        for(int k = 0;k<hash[i]->length && !blocked;k++) //å¯¹æ–¹å µå››
                         {
                             pt2 = hash[i]->pts[k];
-                            if(put(pt2.x,pt2.y,other))//Èô´Ë´¦Îª¿ÕÔòÏÂ×Ó
+                            if(put(pt2.x,pt2.y,other))//è‹¥æ­¤å¤„ä¸ºç©ºåˆ™ä¸‹å­
                             {
-                                if(hash[i]->getSleepFour(player)==0) //Èô¸Õ¸ÕÒ»²½¶ÂµôÁË³åËÄ
+                                if(hash[i]->getSleepFour(player)==0) //è‹¥åˆšåˆšä¸€æ­¥å µæ‰äº†å†²å››
                                 {
                                     blocked = true;
-                                    vcfForcast.push_back(pt);//ÈëÕ»¼ÇÂ¼
+                                    vcfForcast.push_back(pt);//å…¥æ ˆè®°å½•
                                     vcfForcast.push_back(pt2);
-                                    if(VCF(player,vcfForcast,level-1))//µİ¹é£¬¼ÆËãÏÂÒ»²½³åËÄ
+                                    if(VCF(player,vcfForcast,level-1))//é€’å½’ï¼Œè®¡ç®—ä¸‹ä¸€æ­¥å†²å››
                                     {
-                                        del(pt2.x,pt2.y);//³öÕ»
+                                        del(pt2.x,pt2.y);//å‡ºæ ˆ
                                         del(pt.x,pt.y);
                                         return true;
                                     }
-                                    vcfForcast.pop_back();//³öÕ»
+                                    vcfForcast.pop_back();//å‡ºæ ˆ
                                     vcfForcast.pop_back();
                                 }
-                                del(pt2.x,pt2.y);//³öÕ»
+                                del(pt2.x,pt2.y);//å‡ºæ ˆ
                             }
                         }
-                        if(blocked==false) //Èç¹û¶Ô·½¶Â²»µô
+                        if(blocked==false) //å¦‚æœå¯¹æ–¹å µä¸æ‰
                         {
                             del(pt.x,pt.y);
                             return true;
                         }
                     }
-                    del(pt.x,pt.y);//³öÕ»
+                    del(pt.x,pt.y);//å‡ºæ ˆ
                 }
             }
         }
@@ -597,41 +593,41 @@ bool Board::VCT(int player, Point &result, int level) {
                 if(put(pt.x,pt.y,player))
                 {
                     int numOfAttack = info.getAliveThree(player)+ info.getSleepFour(player);
-                    if(numOfAttack >=1) //³åÈı/³åËÄ
+                    if(numOfAttack >=1) //å†²ä¸‰/å†²å››
                     {
-                        if(carefulOtherVCF && VCF(other,clean(tempVcf),4))//if cannot block other's VCF
+                        if(carefulOtherVCF && VCF(other,clean(tempVcf),4))
                         {
                             del(pt);
-                            continue; //continue search
+                            continue;
                         }
                         bool blocked = false;
 
-                        for(int k = 0;k < hash[i]->length && !blocked;k++) //¶Ô·½¶Â
+                        for(int k = 0;k < hash[i]->length && !blocked;k++) //å¯¹æ–¹å µ
                         {
                             pt2 = hash[i]->pts[k];
-                            if(put(pt2.x,pt2.y,other))//Èô´Ë´¦Îª¿ÕÔòÏÂ×Ó
+                            if(put(pt2.x,pt2.y,other))//è‹¥æ­¤å¤„ä¸ºç©ºåˆ™ä¸‹å­
                             {
-                                //Èô¸Õ¸ÕÒ»²½¶ÂµôÁË³åÈı/³åËÄ
+                                //è‹¥åˆšåˆšä¸€æ­¥å µæ‰äº†å†²ä¸‰/å†²å››
                                 if(hash[i]->getAliveThree(player) + hash[i]->getSleepFour(player) ==0)
                                 {
-                                    //µİ¹é£¬¼ÆËãÏÂÒ»²½³åÈı/³åËÄ
+                                    //é€’å½’ï¼Œè®¡ç®—ä¸‹ä¸€æ­¥å†²ä¸‰/å†²å››
                                     if(!VCT(player, result,level-1))
                                     {
                                         blocked = true;
                                     }
                                 }
-                                del(pt2.x,pt2.y);//³öÕ»
+                                del(pt2.x,pt2.y);//å‡ºæ ˆ
                             }
                         }
 
-                        if(!blocked) //Èç¹û¶Ô·½¶Â²»µô
+                        if(!blocked) //å¦‚æœå¯¹æ–¹å µä¸æ‰
                         {
                             del(pt.x,pt.y);
                             result = pt;
                             return true;
                         }
                     }
-                    del(pt.x,pt.y);//³öÕ»
+                    del(pt.x,pt.y);//å‡ºæ ˆ
                 }
             }
         }

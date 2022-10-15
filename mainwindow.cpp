@@ -52,7 +52,7 @@ MainWindow::MainWindow(QWidget *parent) :
     pal.setColor(QPalette::Base,QColor(200,200,200,100));
     ui->textBrowser->setPalette(pal);
 
-    title = tr("连珠高手 4.0beta - ID%1").arg(id);
+    title = tr("连珠高手 4.0 - ID%1").arg(id);
     setWindowTitle(title);
     ui->textBrowser->setCurrentFont(QFont("Time New Roman",11));
 
@@ -288,9 +288,9 @@ void MainWindow::printResult()
     if(twoPlayer)
     {
         if(board.winner()==USR)
-            QMessageBox::warning(this,tr(" "),tr("黑棋赢了"),QMessageBox::Ok);
+            QMessageBox::warning(this,tr(" "),tr("黑棋获胜"),QMessageBox::Ok);
         else if(board.winner()==COM)
-            QMessageBox::warning(this,tr(""),tr("白棋赢了"),QMessageBox::Ok);
+            QMessageBox::warning(this,tr(""),tr("白棋获胜"),QMessageBox::Ok);
         else
             QMessageBox::warning(this,tr(" "),tr("平局"),QMessageBox::Ok);
     }
@@ -298,12 +298,12 @@ void MainWindow::printResult()
     {
         if(board.winner()==USR)
         {
-            QMessageBox::warning(this,tr(" "),tr("你赢了！"),QMessageBox::Ok);
+            QMessageBox::warning(this,tr(" "),tr("你获胜"),QMessageBox::Ok);
             myScore++;
         }
         else if(board.winner()==COM)
         {
-            QMessageBox::warning(this,tr(" "),tr("你输了"),QMessageBox::Ok);
+            QMessageBox::warning(this,tr(" "),tr("对方获胜"),QMessageBox::Ok);
             oppScore++;
         }
         else
@@ -316,9 +316,9 @@ void MainWindow::printResult()
     else
     {
         if(board.winner()==USR)
-            QMessageBox::warning(this,tr(" "),tr("你赢了！"),QMessageBox::Ok);
+            QMessageBox::warning(this,tr(" "),tr("你获胜"),QMessageBox::Ok);
         else if(board.winner()==COM)
-            QMessageBox::warning(this,tr("呵呵"),tr("电脑赢了"),QMessageBox::Ok);
+            QMessageBox::warning(this,tr(" "),tr("电脑获胜"),QMessageBox::Ok);
         else
             QMessageBox::warning(this,tr(" "),tr("平局"),QMessageBox::Ok);
     }
@@ -686,13 +686,12 @@ void MainWindow::on_sizeButton_clicked()
 
 void MainWindow::on_actionLoad_triggered()
 {
-    string path = "hhh";
-    qDebug(path.c_str());
+    //TODO
 }
 
 void MainWindow::on_actionSave_triggered()
 {
-
+    //TODO
 }
 
 void MainWindow::on_actionCalculate_triggered()
