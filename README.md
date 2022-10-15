@@ -1,7 +1,7 @@
 ## wuziqi (五子棋/Gomoku)
 A traditional board game (https://en.wikipedia.org/wiki/Gomoku) implemented using Qt framework. The application is in Chinese and there are currently no multi-language support.
 
-<img src="img/1.png" alt="" width="400" />
+<img src="img/1.png" alt="" width="600" />
 
 ### Features
 
