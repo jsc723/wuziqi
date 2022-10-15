@@ -53,7 +53,7 @@ MainWindow::MainWindow(QWidget *parent) :
     pal.setColor(QPalette::Base,QColor(200,200,200,100));
     ui->textBrowser->setPalette(pal);
 
-    title = tr("连珠高手 4.0 - ID%1").arg(id);
+    title = tr("五子棋大师 4.0 - ID%1").arg(id);
     setWindowTitle(title);
     ui->textBrowser->setCurrentFont(QFont("Time New Roman",11));
 
@@ -680,11 +680,13 @@ void MainWindow::on_sizeButton_clicked()
 void MainWindow::on_actionLoad_triggered()
 {
     //TODO
+    QMessageBox::warning(this,tr(" "),tr("该功能还未实现"),QMessageBox::Ok);
 }
 
 void MainWindow::on_actionSave_triggered()
 {
     //TODO
+    QMessageBox::warning(this,tr(" "),tr("该功能还未实现"),QMessageBox::Ok);
 }
 
 void MainWindow::on_actionCalculate_triggered()
