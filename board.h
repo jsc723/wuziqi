@@ -136,6 +136,8 @@ public:
     void clear();
 
     Point pts[R];
+    int cachedData[R];
+    int tempData[A];
     int *data;
     int (*parent)[R];
     int length;

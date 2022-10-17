@@ -54,6 +54,8 @@ MainWindow::MainWindow(QWidget *parent) :
     QPalette pal = ui->textBrowser->palette();
     pal.setColor(QPalette::Base,QColor(200,200,200,100));
     ui->textBrowser->setPalette(pal);
+    ui->mainToolBar->actions()[2]->setText(tr("先手"));
+
 
     title = tr("五子棋大师 4.0 - ID%1").arg(id);
     setWindowTitle(title);
@@ -406,7 +408,7 @@ void MainWindow::on_actionGame_triggered(bool noUpdate = false)
 {
     if(board.first==USR&&!twoPlayer)
     {
-        ui->mainToolBar->actions()[2]->setText(tr("电脑先下"));
+        ui->mainToolBar->actions()[2]->setText(tr("后手"));
         if(board.dif)ui->mainToolBar->actions()[3]->setText(tr("困难模式"));
         else ui->mainToolBar->actions()[3]->setText(tr("简单模式"));
         ui->mainToolBar->actions()[3]->setEnabled(true);
@@ -414,24 +416,24 @@ void MainWindow::on_actionGame_triggered(bool noUpdate = false)
             board.first = COM;
             board.compInput();      /*Computer's turn*/
         } else {
-            ui->mainToolBar->actions()[2]->setText(tr("玩家先下"));
+            ui->mainToolBar->actions()[2]->setText(tr("先手"));
         }
     }
     else if(board.first==COM)
     {
-        ui->mainToolBar->actions()[2]->setText(tr("双人游戏"));
+        ui->mainToolBar->actions()[2]->setText(tr("双人"));
         ui->mainToolBar->actions()[3]->setEnabled(false);
         if (!noUpdate) {
             board.first = USR;
             twoPlayer = true;
             board.reset();
         } else {
-            ui->mainToolBar->actions()[2]->setText(tr("电脑先下"));
+            ui->mainToolBar->actions()[2]->setText(tr("后手"));
         }
     }
     else
     {
-        ui->mainToolBar->actions()[2]->setText(tr("玩家先下"));
+        ui->mainToolBar->actions()[2]->setText(tr("先手"));
         if(board.dif)ui->mainToolBar->actions()[3]->setText(tr("困难模式"));
         else ui->mainToolBar->actions()[3]->setText(tr("简单模式"));
         ui->mainToolBar->actions()[3]->setEnabled(true);
@@ -440,7 +442,7 @@ void MainWindow::on_actionGame_triggered(bool noUpdate = false)
             board.first = USR;
             board.reset();
         } else {
-            ui->mainToolBar->actions()[2]->setText(tr("双人游戏"));
+            ui->mainToolBar->actions()[2]->setText(tr("双人"));
         }
     }
     MainWindow::update();

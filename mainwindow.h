@@ -110,6 +110,7 @@ private slots:
 
     void on_actionCalculate_triggered();
 
+
 private:
     bool checkBind(int senderId){
         return !((bindOppid!=-1)&&(senderId==bindOppid));

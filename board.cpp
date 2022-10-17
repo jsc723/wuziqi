@@ -461,22 +461,34 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
         {
             int i = orders[k].y, j = orders[k].z;
             put(i,j,COM);
-            if (level == MAX_LEVEL) {
+
+            bool usrVCT = false;
+            if (level == cur_level) {
                 nowWorkingOn.x = i;
                 nowWorkingOn.y = j;
                 nowPercentage = 100.0*k / orders.size();
 
                 Point vct;
                 qint64 timeRemain = deadline - QDateTime::currentMSecsSinceEpoch();
+                qDebug() << toColOnBoard(i) << toRowOnBoard(j);
+
                 if (dif && timeRemain > 1000 && VCT(USR, vct, 3, deadline + MaxVCTTime)) {
-                    temp = -2000;
-                    goto com_done;
+                    usrVCT = true;
+                    qDebug() << toColOnBoard(i) << toRowOnBoard(j) << "cannot block usrVCT";
                 }
             }
             temp = thinkAbout(forcast,level-1,USR,max,deadline);
+            if (usrVCT) {
+                temp -= 1000;
+            }
             if(noNeighbor(i,j))
                 temp-=3;
             temp -= closeToBoundary(i,j)*10;
+
+            if (level == cur_level) {
+                qDebug() << toColOnBoard(i) << toRowOnBoard(j) << temp;
+            }
+
             if(temp>max)
             {
                 max = temp;
@@ -484,14 +496,19 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
             }
             com_done:
             del(i,j);
+
             if(max>=parentExtreme)
                 return max;
 
             qint64 cur = QDateTime::currentMSecsSinceEpoch();
 
             if (cur >= deadline) {
+
                 return max;
             }
+        }
+        if (level == cur_level) {
+            qDebug() << "result: " << toColOnBoard(forcast[level].x) << toRowOnBoard(forcast[level].x) << max;
         }
         return max;
     }
@@ -540,12 +557,12 @@ double Board::score(int nextPlayer)
     bool conservative = (first == nextPlayer && count<20);
 
     if(conservative)
-        k = 1.6 - count * 0.02;
+        k = 2.0 - count * 0.02;
     else
-        k = 1.2;
+        k = 1.3;
 
-    score +=   (5*info.getTwo(player) + 7*info.getSleepThree(player))
-            -  k * (5*info.getTwo(nextPlayer)  +  7*info.getSleepThree(nextPlayer));
+    score +=   (7*info.getTwo(player) + 5*info.getSleepThree(player))
+            -  k * (7*info.getTwo(nextPlayer)  +  5*info.getSleepThree(nextPlayer));
 
     if(info.getFive(player)>0)
         return score + 20000;
@@ -575,8 +592,8 @@ vector<Point> &clean(vector<Point> &vcfForcast) {
 
 double Board::lim(int three,int four, bool conservative)
 {
-    if(three==1&&four==0) return conservative?-1:0;
-    if(three==0&&four==1) return conservative?-2:0;
+    if(three==1&&four==0) return conservative?-10:-5;
+    if(three==0&&four==1) return conservative?-30:-10;
     if(three>=2&&four==0) return 5000;
     if(three + four >= 2) return 15000;
     return 0;
@@ -935,45 +952,42 @@ RowInfo::RowInfo(int t[R][R],Point start,Direction d) :
 void RowInfo::flash(BoardInfo* info)
 {
     info->sub(this);
-    if(data!=0)
-        delete[] data;
     data = getData();
     int *tempUSR= tempArray(data,USR);
-    int *tempCOM = tempArray(data,COM);
+
     twoUSR = numOfTwo(tempUSR,USR);
     sleepThreeUSR = numOfSleepThree(tempUSR,USR);
     aliveThreeUSR = numOfAliveThree(tempUSR,USR);
     sleepFourUSR = numOfSleepFour(tempUSR,USR);
     aliveFourUSR = numOfAliveFour(tempUSR,USR);
     fiveUSR = numOfFive(tempUSR,USR);
+
+    int *tempCOM = tempArray(data,COM);
     twoCOM = numOfTwo(tempCOM,COM);
     sleepThreeCOM = numOfSleepThree(tempCOM,COM);
     aliveThreeCOM = numOfAliveThree(tempCOM,COM);
     sleepFourCOM = numOfSleepFour(tempCOM,COM);
     aliveFourCOM = numOfAliveFour(tempCOM,COM);
     fiveCOM = numOfFive(tempCOM,COM);
+
     nonEmpty = countNonEmpty();
-    delete[] tempUSR;
-    delete[] tempCOM;
     info->add(this);
 }
 int *RowInfo::getData()
 {
-    int *data = new int[R];
     int i;
     for(i=0;i<length;i++)
-        data[i] = parent[pts[i].x][pts[i].y];
-    return data;
+        cachedData[i] = parent[pts[i].x][pts[i].y];
+    return cachedData;
 }
-int *RowInfo::tempArray(int RowInfo[],int player)
+int *RowInfo::tempArray(int data[],int player)
 {
     int i;
-    int *temp = new int[A];
     for(i=0;i<A;i++)
-        temp[i] = WALL;
+        tempData[i] = WALL;
     for(i=0;i<length;i++)
-        temp[i+1] = (  RowInfo[i]!=player  &&  RowInfo[i]!=EMPTY  )?WALL:RowInfo[i];
-    return temp;
+        tempData[i+1] = (  data[i]!=player  &&  data[i]!=EMPTY  )?WALL:data[i];
+    return tempData;
 }
 void RowInfo::print()
 {
