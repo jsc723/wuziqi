@@ -3,6 +3,7 @@
 #include "ui_mainwindow.h"
 #include <ctime>
 #include <cstdlib>
+#include <cstdio>
 #include <QThread>
 #include <QTextCodec>
 #include <QLabel>
@@ -16,6 +17,7 @@
 #include <QTimer>
 #include <QTime>
 #include <QDateTime>
+#include <QFileDialog>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -394,7 +396,7 @@ void MainWindow::on_actionHuiqi_triggered()
     update();
 }
 
-void MainWindow::on_actionGame_triggered()
+void MainWindow::on_actionGame_triggered(bool noUpdate = false)
 {
     if(board.first==USR&&!twoPlayer)
     {
@@ -402,16 +404,24 @@ void MainWindow::on_actionGame_triggered()
         if(board.dif)ui->mainToolBar->actions()[3]->setText(tr("困难模式"));
         else ui->mainToolBar->actions()[3]->setText(tr("简单模式"));
         ui->mainToolBar->actions()[3]->setEnabled(true);
-        board.first = COM;
-        board.compInput();      /*Computer's turn*/
+        if (!noUpdate) {
+            board.first = COM;
+            board.compInput();      /*Computer's turn*/
+        } else {
+            ui->mainToolBar->actions()[2]->setText(tr("玩家先下"));
+        }
     }
     else if(board.first==COM)
     {
         ui->mainToolBar->actions()[2]->setText(tr("双人游戏"));
         ui->mainToolBar->actions()[3]->setEnabled(false);
-        board.first = USR;
-        twoPlayer = true;
-        board.reset();
+        if (!noUpdate) {
+            board.first = USR;
+            twoPlayer = true;
+            board.reset();
+        } else {
+            ui->mainToolBar->actions()[2]->setText(tr("电脑先下"));
+        }
     }
     else
     {
@@ -419,11 +429,15 @@ void MainWindow::on_actionGame_triggered()
         if(board.dif)ui->mainToolBar->actions()[3]->setText(tr("困难模式"));
         else ui->mainToolBar->actions()[3]->setText(tr("简单模式"));
         ui->mainToolBar->actions()[3]->setEnabled(true);
-        twoPlayer = false;
-        board.first = USR;
-        board.reset();
+        if (!noUpdate) {
+            twoPlayer = false;
+            board.first = USR;
+            board.reset();
+        } else {
+            ui->mainToolBar->actions()[2]->setText(tr("双人游戏"));
+        }
     }
-    update();
+    MainWindow::update();
 }
 
 void MainWindow::on_actionDiff_triggered()
@@ -679,14 +693,69 @@ void MainWindow::on_sizeButton_clicked()
 
 void MainWindow::on_actionLoad_triggered()
 {
-    //TODO
-    QMessageBox::warning(this,tr(" "),tr("该功能还未实现"),QMessageBox::Ok);
+    QString fileName = QFileDialog::getOpenFileName(this, tr("读取棋谱"), "",tr("txt files (*.txt);;All Files (*)"));
+    if (fileName.isEmpty()) {
+        QMessageBox::information(this, tr("请输入一个文件名"),"");
+        return;
+    }
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::information(this, tr("无法打开文件"),
+                         file.errorString());
+        return;
+    }
+    QDataStream in(&file);
+    in.setVersion(QDataStream::Qt_4_8);
+    board.reset();
+    int count;
+    in >> count >> board.first >> twoPlayer;
+    finished = false;
+    busy = true;
+    ui->mainToolBar->actions()[2]->setEnabled(false);
+    ui->mainToolBar->actions()[3]->setEnabled(false);
+
+    int player = board.first;
+    on_actionGame_triggered(true);
+    for(int i = 0; i < count; i++) {
+        int x, y;
+        in >> x >> y;
+        board.put(x,y,player);
+        player = player==USR?COM:USR;
+        board.steps[board.count-1] = Point(x,y);
+        if(board.winner()!=0||board.count==225)
+        {
+            printResult();
+            ui->mainToolBar->actions()[1]->setEnabled(false);
+            busy = false;
+            return;
+        }
+    }
+    busy = false;
+    update();
 }
 
 void MainWindow::on_actionSave_triggered()
 {
-    //TODO
-    QMessageBox::warning(this,tr(" "),tr("该功能还未实现"),QMessageBox::Ok);
+    QString fileName = QFileDialog::getSaveFileName(this, tr("保存棋谱"), "",tr("txt files (*.txt);;All Files (*)"));
+    if (fileName.isEmpty()) {
+        QMessageBox::information(this, tr("请输入一个文件名"), "");
+        return;
+    }
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly)) {
+        QMessageBox::information(this, tr("无法打开文件"),
+                         file.errorString());
+        return;
+    }
+
+    QDataStream out(&file);
+    out.setVersion(QDataStream::Qt_4_8);
+    out << board.count << board.first << twoPlayer;
+
+    for(int i = 0; i < board.count; i++) {
+        out << board.steps[i].x << board.steps[i].y;
+    }
+    file.close();
 }
 
 void MainWindow::on_actionCalculate_triggered()

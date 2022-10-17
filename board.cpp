@@ -227,8 +227,12 @@ void Board::compInput()
     else if(count==1) {round2(&x, &y);}
     else if(count==2) {round3(&x, &y);}
     else if(preCheck(&x, &y, player)){ }
-    else if(dif && tryVCF(&x, &y, player)) { }
-    else if(dif && tryVCT(&x, &y, player)) { }
+    else if(dif && tryVCF(&x, &y, player)) {
+        qDebug("find VCF");
+    }
+    else if(dif && tryVCT(&x, &y, player)) {
+        qDebug("find VCT");
+    }
     else
     {
         Point forcast[60];
@@ -513,9 +517,9 @@ double Board::score(int nextPlayer)
     bool conservative = (first == nextPlayer && count<20);
 
     if(conservative)
-        k = 1.6 - count * 0.03;
+        k = 1.5 - count * 0.02;
     else
-        k = 1.0;
+        k = 0.9;
 
     score +=   (5*info.getTwo(player) + 7*info.getSleepThree(player))
             -  k * (5*info.getTwo(nextPlayer)  +  7*info.getSleepThree(nextPlayer));

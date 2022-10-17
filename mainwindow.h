@@ -82,7 +82,7 @@ private slots:
 
     void on_actionHuiqi_triggered();
 
-    void on_actionGame_triggered();
+    void on_actionGame_triggered(bool noUpdate);
 
     void on_actionDiff_triggered();
 
