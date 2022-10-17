@@ -43,14 +43,16 @@ void Board::reset()
     displayCount = 0;
     useDisplayCount = false;
     justHuiqi = false;
-    info = BoardInfo();
     nowPercentage = 0.0;
     cur_level = MAX_LEVEL;
     for(int i= 0;i<225;i++) {
         table[i/R][i%R] = EMPTY;
         neighborCount[i/R][i%R] = 0;
     }
-    flashHash();
+    info = BoardInfo();
+    for(int i = 0; i < H; i++) {
+        hash[i]->clear();
+    }
 }
 
 void Board::dPrintVCF(vector<Point> &vcf,int player) const
@@ -226,6 +228,7 @@ void Board::compInput()
 {
     int x,y;
     double score;
+    BoardInfo infoSaved = getInfo();
     int player = nextPlayer(COM);
     if(count==0){x=7;y=7;}
     else if(count==1) {round2(&x, &y);}
@@ -263,11 +266,19 @@ void Board::compInput()
         }
     }
 
+    BoardInfo infoNow = getInfo();
+
+    if (!(infoSaved == infoNow)) {
+        qDebug() << "\n!!!!info not consistent!!!!\n";
+    }
+
 
     steps[count] = Point(x,y);
     putAndUpdateNeighbor(x,y,player);
+    infoNow = getInfo();
     qDebug("%d %s : (%c,%d)",count,player == COM ? "COM":"USR",
            toColOnBoard(x),toRowOnBoard(y));
+    infoNow.showInfo();
 }
 void Board::round2(int *x,int *y)
 {
@@ -401,7 +412,7 @@ void Board::afterCheck(int *x, int *y, int player)
 
 bool Board::tryVCF(int *x, int *y, int player) {
     Point vcf;
-    if(VCF(player, vcf,10))
+    if(VCF(player, vcf,10,QDateTime::currentMSecsSinceEpoch() + MaxVCTTime))
     {
         *x = vcf.x;
         *y = vcf.y;
@@ -411,7 +422,7 @@ bool Board::tryVCF(int *x, int *y, int player) {
 }
 bool Board::tryVCT(int *x, int *y, int player) {
     Point vct;
-    if(VCT(player,vct,6))
+    if(VCT(player,vct,6,QDateTime::currentMSecsSinceEpoch() + MaxVCTTime))
     {
         *x = vct.x;
         *y = vct.y;
@@ -454,6 +465,13 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
                 nowWorkingOn.x = i;
                 nowWorkingOn.y = j;
                 nowPercentage = 100.0*k / orders.size();
+
+                Point vct;
+                qint64 timeRemain = deadline - QDateTime::currentMSecsSinceEpoch();
+                if (dif && timeRemain > 1000 && VCT(USR, vct, 3, deadline + MaxVCTTime)) {
+                    temp = -2000;
+                    goto com_done;
+                }
             }
             temp = thinkAbout(forcast,level-1,USR,max,deadline);
             if(noNeighbor(i,j))
@@ -464,6 +482,7 @@ double Board::thinkAbout(Point forcast[],int level,int nextPlayer,double parentE
                 max = temp;
                 forcast[level] = Point(i,j);
             }
+            com_done:
             del(i,j);
             if(max>=parentExtreme)
                 return max;
@@ -521,9 +540,9 @@ double Board::score(int nextPlayer)
     bool conservative = (first == nextPlayer && count<20);
 
     if(conservative)
-        k = 1.5 - count * 0.02;
+        k = 1.6 - count * 0.02;
     else
-        k = 0.9;
+        k = 1.2;
 
     score +=   (5*info.getTwo(player) + 7*info.getSleepThree(player))
             -  k * (5*info.getTwo(nextPlayer)  +  7*info.getSleepThree(nextPlayer));
@@ -533,13 +552,13 @@ double Board::score(int nextPlayer)
     if(info.getAliveFour(nextPlayer) + info.getSleepFour(nextPlayer)>0)
         return score - 20000;
     if(info.getAliveFour(player)>0)
-        return score + 8000;
+        return score + 10000;
 
     if(info.getAliveThree(nextPlayer) > 0) {
-        if(info.getSleepFour(player) == 0)
+        if(info.getSleepFour(player) == 0) {
             return score - 20000;
-        else {
-            score += 3;
+        } else {
+            score -= 10;
         }
     }
 
@@ -556,10 +575,10 @@ vector<Point> &clean(vector<Point> &vcfForcast) {
 
 double Board::lim(int three,int four, bool conservative)
 {
-    if(three==1&&four==0) return conservative?3:5;
-    if(three==0&&four==1) return conservative?3:4;
-    if(three>=2&&four==0) return 4000;
-    if(three + four >= 2) return 16000;
+    if(three==1&&four==0) return conservative?-1:0;
+    if(three==0&&four==1) return conservative?-2:0;
+    if(three>=2&&four==0) return 5000;
+    if(three + four >= 2) return 15000;
     return 0;
 }
 
@@ -644,7 +663,7 @@ Point Board::simpleDirectWinFor4(int player, int line) {
     return pt2;
 }
 
-bool Board::VCF(int player, Point &result,int level) {
+bool Board::VCF(int player, Point &result,int level, qint64 deadline) {
     int other = otherPlayer(player);
     QString prefix = QString::fromStdString(spaceStr(level));
     int i,j;
@@ -652,23 +671,26 @@ bool Board::VCF(int player, Point &result,int level) {
         return false;
     BoardInfo info = getInfo();
     if(info.getFive(player) > 0) {
-        qDebug() << prefix << "VCF due to five";
+        //qDebug() << prefix << "VCF due to five";
         return true;
     }
     if(info.getAliveFour(player) + info.getSleepFour(player) > 0) {
-        qDebug() << prefix << "VCF due to four";
+        //qDebug() << prefix << "VCF due to four";
         result = simpleDirectWinFor4(player, -1);
         return true;
     }
     if(info.getAliveFour(other) + info.getSleepFour(other) > 0)
         return false;
     if(info.getAliveThree(player) > 0) {
-        qDebug() << prefix << "VCF due to direct alive three";
+        //qDebug() << prefix << "VCF due to direct alive three";
         result = simpleDirectWinForAlive3(player, -1);
         return true;
     }
     if(level <= 0)
         return false;
+    if (QDateTime::currentMSecsSinceEpoch() >= deadline) {
+        return false;
+    }
     for(i=0;i<H;i++)
     {
         if(hash[i]->getSleepThree(player) == 0)
@@ -686,12 +708,12 @@ bool Board::VCF(int player, Point &result,int level) {
                 {
                     pt2 = blockSleep4(player, i);
                     Point nextLevelResult;
-                    if(VCF(player,nextLevelResult,level-1))//递归，计算下一步冲四
+                    if(VCF(player,nextLevelResult,level-1,deadline))//递归，计算下一步冲四
                     {
                         del(pt2.x,pt2.y);//出栈
                         del(pt.x,pt.y);
                         result = pt;
-                        qDebug() << prefix << "VCF at " << toColOnBoard(result.x) << toRowOnBoard(result.y);
+                        //qDebug() << prefix << "VCF at " << toColOnBoard(result.x) << toRowOnBoard(result.y);
                         return true;
                     }
                     del(pt2.x,pt2.y);//出栈
@@ -705,22 +727,25 @@ bool Board::VCF(int player, Point &result,int level) {
 
 
 
-bool Board::VCT(int player, Point &result, int level) {
+bool Board::VCT(int player, Point &result, int level, qint64 deadline) {
     int i,j;
     int other = otherPlayer(player);
     Point vcf;
     QString prefix = QString::fromStdString(spaceStr(level));
 
-    if(VCF(player, result, level)) {
-        qDebug() << prefix << "VCT:VCF " << toColOnBoard(result.x) << toRowOnBoard(result.y);
+    if(VCF(player, result, level, deadline)) {
+        //qDebug() << prefix << "VCT:VCF " << toColOnBoard(result.x) << toRowOnBoard(result.y);
         return true;
     }
     if(level<=0)
         return false;
     if(info.getAliveFour(other) + info.getSleepFour(other) + info.getAliveThree(other) > 0)
         return false;
-    bool otherHasVCF = VCF(other, vcf,4);
+    bool otherHasVCF = VCF(other, vcf,4, deadline + MaxVCTTime);
     if (otherHasVCF) {
+        return false;
+    }
+    if (QDateTime::currentMSecsSinceEpoch() >= deadline) {
         return false;
     }
 
@@ -729,7 +754,7 @@ bool Board::VCT(int player, Point &result, int level) {
         if(hash[i]->getTwo(player))
         {
             Point pt,pt2;
-            qDebug() << prefix << "hash = " << i;
+            //qDebug() << prefix << "hash = " << i;
             for(j=0;j < hash[i]->length;j++)
             {
                 pt = hash[i]->pts[j];
@@ -737,7 +762,7 @@ bool Board::VCT(int player, Point &result, int level) {
                 {
                     if(hash[i]->getAliveThree(player) >=1) //冲三
                     {
-                        qDebug() << prefix << "check " << toColOnBoard(pt.x) << toRowOnBoard(pt.y);
+                        //qDebug() << prefix << "check " << toColOnBoard(pt.x) << toRowOnBoard(pt.y);
                         bool blocked = false;
 
                         for(int k = 0;k < hash[i]->length && !blocked;k++) //对方堵
@@ -748,12 +773,12 @@ bool Board::VCT(int player, Point &result, int level) {
                                 //若刚刚一步堵掉了冲三
                                 if(hash[i]->getAliveThree(player) ==0)
                                 {
-                                    qDebug() << prefix << "try block at " << toColOnBoard(pt2.x) << toRowOnBoard(pt2.y);
+                                    //qDebug() << prefix << "try block at " << toColOnBoard(pt2.x) << toRowOnBoard(pt2.y);
                                     //递归，计算下一步冲三
                                     Point nextResult;
-                                    if(!VCT(player, nextResult,level-1))
+                                    if(!VCT(player, nextResult,level-1,deadline))
                                     {
-                                        qDebug() << prefix << "blocked at " << toColOnBoard(pt2.x) << toRowOnBoard(pt2.y);
+                                        //qDebug() << prefix << "blocked at " << toColOnBoard(pt2.x) << toRowOnBoard(pt2.y);
                                         blocked = true;
                                     }
                                 }
@@ -765,7 +790,7 @@ bool Board::VCT(int player, Point &result, int level) {
                         {
                             del(pt);
                             result = pt;
-                            qDebug() << prefix << "VCT: " << toColOnBoard(result.x) << toRowOnBoard(result.y);
+                            //qDebug() << prefix << "VCT: " << toColOnBoard(result.x) << toRowOnBoard(result.y);
                             return true;
                         }
                     }
@@ -962,6 +987,24 @@ void RowInfo::print()
     }
     ss>>s;
     qDebug() << s.c_str();
+}
+
+void RowInfo::clear()
+{
+    data = getData();
+    twoUSR = 0;
+    sleepThreeUSR = 0;
+    aliveThreeUSR = 0;
+    sleepFourUSR = 0;
+    aliveFourUSR = 0;
+    fiveUSR = 0;
+    twoCOM = 0;
+    sleepThreeCOM = 0;
+    aliveThreeCOM = 0;
+    sleepFourCOM = 0;
+    aliveFourCOM = 0;
+    fiveCOM = 0;
+    nonEmpty = 0;
 }
 int RowInfo::numOfTwo(int temp[],int player)
 {

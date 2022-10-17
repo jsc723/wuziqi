@@ -133,6 +133,7 @@ public:
     int getLength(){return length;}
     int getNonEmptyCount() {return nonEmpty;}
     void print();
+    void clear();
 
     Point pts[R];
     int *data;
@@ -179,6 +180,21 @@ public:
         fiveCOM -= r->fiveCOM;
     }
 
+    bool operator==(const BoardInfo &r) const {
+        return twoUSR == r.twoUSR &&
+        sleepThreeUSR == r.sleepThreeUSR  &&
+        aliveThreeUSR == r.aliveThreeUSR  &&
+        sleepFourUSR == r.sleepFourUSR  &&
+        aliveFourUSR == r.aliveFourUSR  &&
+        fiveUSR == r.fiveUSR  &&
+        twoCOM == r.twoCOM  &&
+        sleepThreeCOM == r.sleepThreeCOM  &&
+        aliveThreeCOM == r.aliveThreeCOM  &&
+        sleepFourCOM == r.sleepFourCOM  &&
+        aliveFourCOM == r.aliveFourCOM  &&
+        fiveCOM == r.fiveCOM;
+    }
+
 
 };
 
@@ -218,8 +234,8 @@ public:
     Point blockSleep4(int player, int line);
     Point simpleDirectWinForAlive3(int player, int line);
     Point simpleDirectWinFor4(int player, int line);
-    bool VCF(int player, Point &result,int level);
-    bool VCT(int player, Point &result, int level);
+    bool VCF(int player, Point &result,int level, qint64 deadline);
+    bool VCT(int player, Point &result, int level, qint64 deadline);
     bool preCheck(int *x, int *y, int player);
     void afterCheck(int *x, int *y, int player);
     bool tryVCF(int *x, int *y, int player);
@@ -255,6 +271,7 @@ private:
     int table[R][R];
     int neighborCount[R][R]; //num of neighbor in radius 2
     static const qint64 MaxThinkTime = 10000; //in msec, 10s
+    static const qint64 MaxVCTTime = 5000; //5s
 };
 vector<Point> &clean(vector<Point> &vcfForcast);
 
