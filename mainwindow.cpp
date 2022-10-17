@@ -163,10 +163,11 @@ void MainWindow::paintEvent(QPaintEvent *)
     qreal x,y,w,h;
     tempPainter.translate(XX*fac,YY*fac);
     tempPainter.drawPixmap(0,0,emptyBoard);
-    for(int i=0;i<board.count;i++)
+    int cnt = board.useDisplayCount ? board.displayCount : board.count;
+    for(int i=0;i<cnt;i++)
     {
         tempPainter.drawPixmap(board.steps[i].x*40*fac,board.steps[i].y*40*fac,(i%2)?white:black);
-        if(i<board.count-1)
+        if(i<cnt-1)
         {
             x = (board.steps[i].x*40.0+12.0)*fac;
             y = (board.steps[i].y*40.0+15.0)*fac;
@@ -177,15 +178,16 @@ void MainWindow::paintEvent(QPaintEvent *)
         }
     }
     tempPainter.setPen(Qt::black);
-    if(board.count>0) {
-        tempPainter.drawPixmap((board.steps[board.count-1].x*40+13)*fac
-                ,(board.steps[board.count-1].y*40+14)*fac,flag);
+    if(cnt>0) {
+        tempPainter.drawPixmap((board.steps[cnt-1].x*40+13)*fac
+                ,(board.steps[cnt-1].y*40+14)*fac,flag);
     }
     painter.drawPixmap(0,0,nowBoard);
 
 }
 void MainWindow::refresh()
 {
+    board.useDisplayCount = false;
     if(board.winner()!=0||board.count==225)
     {
         printResult();
@@ -266,6 +268,10 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
         return;
     }
     repaint();
+
+    board.displayCount = board.count;
+    board.useDisplayCount = true;
+
     work = new WorkerThread(&board,this);
     connect(work, SIGNAL(done()), this, SLOT(refresh()));
     work->start();
@@ -719,14 +725,15 @@ void MainWindow::on_actionLoad_triggered()
     for(int i = 0; i < count; i++) {
         int x, y;
         in >> x >> y;
-        board.put(x,y,player);
-        player = player==USR?COM:USR;
+        board.putAndUpdateNeighbor(x,y,player);
+        player = board.otherPlayer(player);
         board.steps[board.count-1] = Point(x,y);
         if(board.winner()!=0||board.count==225)
         {
             printResult();
             ui->mainToolBar->actions()[1]->setEnabled(false);
             busy = false;
+            update();
             return;
         }
     }

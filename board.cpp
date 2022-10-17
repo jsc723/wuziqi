@@ -13,6 +13,8 @@ Board::Board()
     dif = true;
 
     count = 0;
+    displayCount = 0;
+    useDisplayCount = false;
     justHuiqi = false;
     info = BoardInfo();
     nowPercentage = 0.0;
@@ -38,6 +40,8 @@ Board::Board()
 void Board::reset()
 {
     count = 0;
+    displayCount = 0;
+    useDisplayCount = false;
     justHuiqi = false;
     info = BoardInfo();
     nowPercentage = 0.0;
@@ -262,7 +266,7 @@ void Board::compInput()
 
     steps[count] = Point(x,y);
     putAndUpdateNeighbor(x,y,player);
-    qDebug("%d %s : (%c,%d)\n",count,player == COM ? "COM":"USR",
+    qDebug("%d %s : (%c,%d)",count,player == COM ? "COM":"USR",
            toColOnBoard(x),toRowOnBoard(y));
 }
 void Board::round2(int *x,int *y)
@@ -396,11 +400,11 @@ void Board::afterCheck(int *x, int *y, int player)
 }
 
 bool Board::tryVCF(int *x, int *y, int player) {
-    if(VCF(player,clean(vcf),10))
+    Point vcf;
+    if(VCF(player, vcf,10))
     {
-        dPrintVCF(vcf, player);
-        *x = vcf[0].x;
-        *y = vcf[0].y;
+        *x = vcf.x;
+        *y = vcf.y;
         return true;
     }
     return false;
@@ -558,98 +562,182 @@ double Board::lim(int three,int four, bool conservative)
     if(three + four >= 2) return 16000;
     return 0;
 }
-bool Board::VCF(int player, vector<Point> &vcfForcast,int level) {
+
+//block player's sleep4 on line hash[i]
+Point Board::blockSleep4(int player, int line) {
     int other = otherPlayer(player);
+    if (line == -1) {
+        for(line = 0; line < H; line++) {
+            if (hash[line]->getSleepFour(player) > 0) {
+                break;
+            }
+        }
+    }
+    Point pt2(-1, -1);
+    for(int k = 0; k < hash[line]->length;k++) //对方堵四
+    {
+        pt2 = hash[line]->pts[k];
+        if(put(pt2.x,pt2.y,other))//若此处为空则下子
+        {
+            if(hash[line]->getSleepFour(player)==0) //若刚刚一步堵掉了冲四
+            {
+                return pt2;
+            }
+            del(pt2.x,pt2.y);//出栈
+        }
+    }
+    //should not reach
+    return pt2;
+}
+
+Point Board::simpleDirectWinForAlive3(int player, int line) {
+    if (line == -1) {
+        for(line = 0; line < H; line++) {
+            if (hash[line]->getAliveThree(player) > 0) {
+                break;
+            }
+        }
+    }
+    Point pt2(-1, -1);
+    for(int k = 0; k < hash[line]->length;k++)
+    {
+        pt2 = hash[line]->pts[k];
+        if(put(pt2.x,pt2.y, player))
+        {
+            if(hash[line]->getAliveFour(player)>=1)
+            {
+                del(pt2.x,pt2.y);
+                return pt2;
+            }
+            del(pt2.x,pt2.y);
+        }
+    }
+    //should not reach
+    qDebug("invalid pt alive 3");
+    return pt2;
+}
+
+Point Board::simpleDirectWinFor4(int player, int line) {
+    if (line == -1) {
+        for(line = 0; line < H; line++) {
+            if (hash[line]->getAliveFour(player) + hash[line]->getSleepFour(player) > 0) {
+                break;
+            }
+        }
+    }
+    Point pt2(-1, -1);
+    for(int k = 0; k < hash[line]->length;k++)
+    {
+        pt2 = hash[line]->pts[k];
+        if(put(pt2.x,pt2.y, player))
+        {
+            if(hash[line]->getFive(player)>=1)
+            {
+                del(pt2.x,pt2.y);
+                return pt2;
+            }
+            del(pt2.x,pt2.y);
+        }
+    }
+    //should not reach
+    qDebug("invalid pt 4");
+    return pt2;
+}
+
+bool Board::VCF(int player, Point &result,int level) {
+    int other = otherPlayer(player);
+    QString prefix = QString::fromStdString(spaceStr(level));
     int i,j;
     if(isFull())
         return false;
     BoardInfo info = getInfo();
-    if(info.getFive(player) + info.getAliveFour(player) + info.getSleepFour(player) > 0)
+    if(info.getFive(player) > 0) {
+        qDebug() << prefix << "VCF due to five";
         return true;
+    }
+    if(info.getAliveFour(player) + info.getSleepFour(player) > 0) {
+        qDebug() << prefix << "VCF due to four";
+        result = simpleDirectWinFor4(player, -1);
+        return true;
+    }
     if(info.getAliveFour(other) + info.getSleepFour(other) > 0)
         return false;
-    if(info.getAliveThree(player) > 0)
+    if(info.getAliveThree(player) > 0) {
+        qDebug() << prefix << "VCF due to direct alive three";
+        result = simpleDirectWinForAlive3(player, -1);
         return true;
+    }
     if(level <= 0)
         return false;
     for(i=0;i<H;i++)
     {
-        if(hash[i]->getSleepThree(player) > 0)
+        if(hash[i]->getSleepThree(player) == 0)
         {
-            Point pt,pt2;
-            for(j=0;j < hash[i]->length;j++)
+            continue; //忽略没有眠三的线
+        }
+
+        Point pt,pt2;
+        for(j=0;j < hash[i]->length;j++)
+        {
+            pt = hash[i]->pts[j];
+            if(put(pt.x,pt.y,player)) //找所有能冲四的点
             {
-                pt = hash[i]->pts[j];
-                if(put(pt.x,pt.y,player)) //若此处为空则下子
+                if(hash[i]->getSleepFour(player)>=1) //冲四
                 {
-                    if(hash[i]->getSleepFour(player)>=1) //冲四
+                    pt2 = blockSleep4(player, i);
+                    Point nextLevelResult;
+                    if(VCF(player,nextLevelResult,level-1))//递归，计算下一步冲四
                     {
-                        bool blocked = false;
-                        for(int k = 0;k<hash[i]->length && !blocked;k++) //对方堵四
-                        {
-                            pt2 = hash[i]->pts[k];
-                            if(put(pt2.x,pt2.y,other))//若此处为空则下子
-                            {
-                                if(hash[i]->getSleepFour(player)==0) //若刚刚一步堵掉了冲四
-                                {
-                                    blocked = true;
-                                    vcfForcast.push_back(pt);//入栈记录
-                                    vcfForcast.push_back(pt2);
-                                    if(VCF(player,vcfForcast,level-1))//递归，计算下一步冲四
-                                    {
-                                        del(pt2.x,pt2.y);//出栈
-                                        del(pt.x,pt.y);
-                                        return true;
-                                    }
-                                    vcfForcast.pop_back();//出栈
-                                    vcfForcast.pop_back();
-                                }
-                                del(pt2.x,pt2.y);//出栈
-                            }
-                        }
-                        if(blocked==false) //如果对方堵不掉
-                        {
-                            del(pt.x,pt.y);
-                            return true;
-                        }
+                        del(pt2.x,pt2.y);//出栈
+                        del(pt.x,pt.y);
+                        result = pt;
+                        qDebug() << prefix << "VCF at " << toColOnBoard(result.x) << toRowOnBoard(result.y);
+                        return true;
                     }
-                    del(pt.x,pt.y);//出栈
+                    del(pt2.x,pt2.y);//出栈
                 }
+                del(pt.x,pt.y);//出栈
             }
         }
     }
     return false;
 }
 
+
+
 bool Board::VCT(int player, Point &result, int level) {
     int i,j;
     int other = otherPlayer(player);
-    vector<Point> tempVcf;
+    Point vcf;
+    QString prefix = QString::fromStdString(spaceStr(level));
 
-    if(VCF(player, tempVcf, level))
+    if(VCF(player, result, level)) {
+        qDebug() << prefix << "VCT:VCF " << toColOnBoard(result.x) << toRowOnBoard(result.y);
         return true;
+    }
     if(level<=0)
         return false;
-    bool carefulOtherVCF = VCF(other, clean(tempVcf),4);
+    if(info.getAliveFour(other) + info.getSleepFour(other) + info.getAliveThree(other) > 0)
+        return false;
+    bool otherHasVCF = VCF(other, vcf,4);
+    if (otherHasVCF) {
+        return false;
+    }
 
     for(i=0;i<H;i++)
     {
-        if(hash[i]->getTwo(player) + hash[i]->getSleepThree(player) >0)
+        if(hash[i]->getTwo(player))
         {
             Point pt,pt2;
+            qDebug() << prefix << "hash = " << i;
             for(j=0;j < hash[i]->length;j++)
             {
                 pt = hash[i]->pts[j];
                 if(put(pt.x,pt.y,player))
                 {
-                    int numOfAttack = info.getAliveThree(player)+ info.getSleepFour(player);
-                    if(numOfAttack >=1) //冲三/冲四
+                    if(hash[i]->getAliveThree(player) >=1) //冲三
                     {
-                        if(carefulOtherVCF && VCF(other,clean(tempVcf),4))
-                        {
-                            del(pt);
-                            continue;
-                        }
+                        qDebug() << prefix << "check " << toColOnBoard(pt.x) << toRowOnBoard(pt.y);
                         bool blocked = false;
 
                         for(int k = 0;k < hash[i]->length && !blocked;k++) //对方堵
@@ -657,27 +745,31 @@ bool Board::VCT(int player, Point &result, int level) {
                             pt2 = hash[i]->pts[k];
                             if(put(pt2.x,pt2.y,other))//若此处为空则下子
                             {
-                                //若刚刚一步堵掉了冲三/冲四
-                                if(hash[i]->getAliveThree(player) + hash[i]->getSleepFour(player) ==0)
+                                //若刚刚一步堵掉了冲三
+                                if(hash[i]->getAliveThree(player) ==0)
                                 {
-                                    //递归，计算下一步冲三/冲四
-                                    if(!VCT(player, result,level-1))
+                                    qDebug() << prefix << "try block at " << toColOnBoard(pt2.x) << toRowOnBoard(pt2.y);
+                                    //递归，计算下一步冲三
+                                    Point nextResult;
+                                    if(!VCT(player, nextResult,level-1))
                                     {
+                                        qDebug() << prefix << "blocked at " << toColOnBoard(pt2.x) << toRowOnBoard(pt2.y);
                                         blocked = true;
                                     }
                                 }
-                                del(pt2.x,pt2.y);//出栈
+                                del(pt2);//出栈
                             }
                         }
 
                         if(!blocked) //如果对方堵不掉
                         {
-                            del(pt.x,pt.y);
+                            del(pt);
                             result = pt;
+                            qDebug() << prefix << "VCT: " << toColOnBoard(result.x) << toRowOnBoard(result.y);
                             return true;
                         }
                     }
-                    del(pt.x,pt.y);//出栈
+                    del(pt);//出栈
                 }
             }
         }

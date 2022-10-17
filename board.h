@@ -44,6 +44,13 @@ inline bool operator<(const Tuple3 &t1, const Tuple3 &t2) {
     if (t1.y != t2.y) return t1.y < t2.y;
     return t1.z < t2.z;
 }
+inline string spaceStr(int k) {
+    string s;
+    for(int i = 0; i < k; i++) {
+        s += "#";
+    }
+    return s;
+}
 
 //------------------------------------RowInfo------------------------------------------------//
 class Info
@@ -208,10 +215,11 @@ public:
         {return player == COM ? USR : COM;}
     int nonEmptyCount(int x, int y);
     double lim(int three, int four, bool consertive);
-    bool VCF(int player, vector<Point> &vcfForcast,int level);
+    Point blockSleep4(int player, int line);
+    Point simpleDirectWinForAlive3(int player, int line);
+    Point simpleDirectWinFor4(int player, int line);
+    bool VCF(int player, Point &result,int level);
     bool VCT(int player, Point &result, int level);
-    bool VCTCOM(vector<Point> &vcfForcast,int level);
-    bool VCTUSR(vector<Point> &vcfForcast,int level);
     bool preCheck(int *x, int *y, int player);
     void afterCheck(int *x, int *y, int player);
     bool tryVCF(int *x, int *y, int player);
@@ -230,6 +238,8 @@ public:
     Point steps[R*R];
 	vector<Point> vcf,vcfu;
 	int count;
+    int displayCount;
+    bool useDisplayCount;
     bool justHuiqi;
     //bool hasVCF;
 	int first;
