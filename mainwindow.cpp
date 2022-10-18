@@ -57,7 +57,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->mainToolBar->actions()[2]->setText(tr("先手"));
 
 
-    title = tr("五子棋大师 4.0 - ID%1").arg(id);
+    title = tr("五子棋大师 4.1 - ID%1").arg(id);
     setWindowTitle(title);
     ui->textBrowser->setCurrentFont(QFont("Time New Roman",11));
 
