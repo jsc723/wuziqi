@@ -561,8 +561,8 @@ double Board::score(int nextPlayer)
     else
         k = 1.3;
 
-    score +=   (7*info.getTwo(player) + 5*info.getSleepThree(player))
-            -  k * (7*info.getTwo(nextPlayer)  +  5*info.getSleepThree(nextPlayer));
+    score +=   (6*info.getTwo(player) + 6*info.getSleepThree(player))
+            -  k * (6*info.getTwo(nextPlayer)  +  6*info.getSleepThree(nextPlayer));
 
     if(info.getFive(player)>0)
         return score + 20000;
