@@ -282,6 +282,7 @@ void Board::compInput()
 }
 void Board::round2(int *x,int *y)
 {
+    srand((unsigned)time(NULL));
     int ran,m = steps[count-1].x,n=steps[count-1].y;
     ran = rand();
     if(ran%2==1)
