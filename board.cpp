@@ -250,7 +250,7 @@ void Board::compInput()
         x = forcast[cur_level].x;
         y = forcast[cur_level].y;
 
-        if (nowPercentage < 50) {
+        if (nowPercentage < 90) {
             cur_level = max(3, cur_level - 2);
             deadline = QDateTime::currentMSecsSinceEpoch() + MaxThinkTime;
             score = thinkAbout(forcast, cur_level, player, extreme, deadline);
