@@ -6,8 +6,8 @@ A traditional board game (https://en.wikipedia.org/wiki/Gomoku) implemented usin
 ### Features
 
 - play with computer
-- play with a friend
-- play and chat with a friend in the same local network
+- play with friend
+- play and chat with friend in the same local network
 
 ### Build
 
